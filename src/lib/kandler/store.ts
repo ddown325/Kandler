@@ -150,6 +150,16 @@ export interface SceneObject {
   displayAsWire: boolean;
   vertexCount?: number;
   faceCount?: number;
+  // Extended features (optional)
+  armature?: import("./types-extended").Armature;
+  shapeKeys?: import("./types-extended").ShapeKey[];
+  activeShapeKeyIndex?: number;
+  physics?: import("./types-extended").PhysicsObject;
+  uvMaps?: import("./types-extended").UVMap[];
+  shaderGraph?: import("./types-extended").ShaderNodeGraph;
+  geoNodeGraph?: import("./types-extended").GeoNodeGraph;
+  // Texture paint canvas (per-object)
+  textureCanvas?: { width: number; height: number; pixels: number[] }; // RGBA 0-255
 }
 
 export interface Collection {
@@ -238,6 +248,15 @@ export interface KandlerState {
   materials: Record<string, MaterialSlot>;
   tracks: AnimationTrack[];
   render: RenderSettings;
+  // Grease Pencil (2D-in-3D drawing)
+  gpLayers: import("./types-extended").GPLayer[];
+  gpStrokes: import("./types-extended").GPStroke[];
+  activeGpLayer: string | null;
+  // Physics simulation
+  physicsPlaying: boolean;
+  physicsTime: number;
+  // Scripting console history
+  consoleHistory: { type: "input" | "output" | "error"; text: string }[];
   showGrid: boolean;
   showAxes: boolean;
   showStats: boolean;
@@ -308,11 +327,43 @@ export interface KandlerState {
   clearToast: () => void;
   loadScene: (data: any) => void;
   exportScene: () => any;
+  exportThreeScene: () => any;
+  exportGLTF: () => any;
+  exportOBJ: () => any;
   newScene: () => void;
+  // Grease Pencil
+  addGpLayer: (name: string) => void;
+  addGpStroke: (stroke: import("./types-extended").GPStroke) => void;
+  clearGpStrokes: () => void;
+  setActiveGpLayer: (id: string | null) => void;
+  // Physics
+  setPhysicsPlaying: (playing: boolean) => void;
+  stepPhysics: (dt: number) => void;
+  // Console
+  pushConsole: (entry: { type: "input" | "output" | "error"; text: string }) => void;
+  clearConsole: () => void;
+  // Extended object operations
+  addShapeKey: (objectId: string, name: string) => void;
+  setShapeKeyValue: (objectId: string, keyId: string, value: number) => void;
+  addBone: (objectId: string, bone: import("./types-extended").Bone) => void;
+  updateBone: (objectId: string, boneId: string, patch: Partial<import("./types-extended").Bone>) => void;
+  setShaderGraph: (objectId: string, graph: import("./types-extended").ShaderNodeGraph) => void;
+  setGeoNodeGraph: (objectId: string, graph: import("./types-extended").GeoNodeGraph) => void;
+  setUvMaps: (objectId: string, maps: import("./types-extended").UVMap[]) => void;
+  setTextureCanvas: (objectId: string, canvas: { width: number; height: number; pixels: number[] }) => void;
+  paintTextureAt: (objectId: string, u: number, v: number, color: [number, number, number, number], brushSize: number) => void;
 }
 
 let _idCounter = 0;
 export const uid = (prefix = "id") => `${prefix}_${Date.now().toString(36)}_${(_idCounter++).toString(36)}`;
+
+// Hex (#rrggbb) → [r, g, b, a] in 0..1 range for GLTF exports
+export function hexToRgba(hex: string, alpha = 1): [number, number, number, number] {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return [1, 1, 1, alpha];
+  const n = parseInt(m[1], 16);
+  return [((n >> 16) & 0xff) / 255, ((n >> 8) & 0xff) / 255, (n & 0xff) / 255, alpha];
+}
 
 export const defaultMaterial = (name = "Material"): MaterialSlot => ({
   id: uid("mat"),
@@ -670,6 +721,13 @@ export const useStore = create<KandlerState>((set, get) => ({
   materials: initMaterials,
   tracks: [],
   render: defaultRender,
+  // Grease Pencil initial layer
+  gpLayers: [{ id: uid("gp"), name: "Layer 1", color: "#b388ff", opacity: 1, visible: true, locked: false }],
+  gpStrokes: [],
+  activeGpLayer: null,
+  physicsPlaying: false,
+  physicsTime: 0,
+  consoleHistory: [],
   showGrid: true,
   showAxes: true,
   showStats: true,
@@ -952,6 +1010,152 @@ export const useStore = create<KandlerState>((set, get) => ({
     };
   },
 
+  exportThreeScene: () => {
+    // Export scene as a Three.js Scene JSON (loadable via THREE.SceneLoader / ObjectLoader)
+    const s = get();
+    const threeScene: any = {
+      metadata: { version: 4.5, type: "Object", generator: "Kandler" },
+      object: {
+        type: "Scene",
+        name: s.project.name,
+        children: Object.values(s.objects).map(obj => {
+          const child: any = {
+            type: obj.kind === "light" ? (obj.light?.type === "sun" ? "DirectionalLight" : obj.light?.type === "spot" ? "SpotLight" : obj.light?.type === "area" ? "RectAreaLight" : "PointLight") : obj.kind === "camera" ? "PerspectiveCamera" : "Mesh",
+            name: obj.name,
+            position: obj.position,
+            rotation: obj.rotation,
+            scale: obj.scale,
+            visible: obj.visible,
+            uuid: obj.id,
+          };
+          if (obj.kind === "mesh" && obj.mesh) {
+            child.geometry = {
+              type: "BufferGeometry",
+              data: {
+                attributes: {
+                  position: obj.mesh.vertices.flatMap(v => [v.x, v.y, v.z]),
+                  // UVs and normals would be added here
+                },
+                index: obj.mesh.faces.flatMap(f => {
+                  const tris: number[] = [];
+                  for (let i = 1; i < f.indices.length - 1; i++) tris.push(f.indices[0], f.indices[i], f.indices[i + 1]);
+                  return tris;
+                }),
+              },
+            };
+            child.material = obj.materialSlots.map(mId => {
+              const m = s.materials[mId];
+              if (!m) return { type: "MeshStandardMaterial", color: 0xb0b0b0 };
+              return {
+                type: "MeshPhysicalMaterial",
+                color: m.baseColor,
+                metalness: m.metallic,
+                roughness: m.roughness,
+                emissive: m.emissive,
+                emissiveIntensity: m.emissiveIntensity,
+                opacity: m.opacity,
+                transparent: m.transparent,
+                wireframe: m.wireframe,
+              };
+            });
+          }
+          if (obj.kind === "light" && obj.light) {
+            child.color = obj.light.color;
+            child.intensity = obj.light.intensity;
+            if (obj.light.castShadow !== undefined) child.castShadow = obj.light.castShadow;
+          }
+          if (obj.kind === "camera" && obj.camera) {
+            child.fov = obj.camera.fov;
+            child.near = obj.camera.near;
+            child.far = obj.camera.far;
+          }
+          return child;
+        }),
+      },
+    };
+    return threeScene;
+  },
+
+  exportGLTF: () => {
+    // Generate a minimal GLTF 2.0 JSON structure
+    const s = get();
+    const meshes: any[] = [];
+    const nodes: any[] = [];
+    const materials: any[] = [];
+    const materialIndexMap: Record<string, number> = {};
+    Object.values(s.objects).forEach((obj, idx) => {
+      if (obj.kind === "mesh" && obj.mesh) {
+        const positions = obj.mesh.vertices.flatMap(v => [v.x, v.y, v.z]);
+        const indices: number[] = [];
+        for (const f of obj.mesh.faces) {
+          for (let i = 1; i < f.indices.length - 1; i++) {
+            indices.push(f.indices[0], f.indices[i], f.indices[i + 1]);
+          }
+        }
+        const bufferIdx = meshes.length * 2;
+        meshes.push({
+          primitives: [{
+            attributes: { POSITION: bufferIdx },
+            indices: bufferIdx + 1,
+            material: obj.materialSlots[0] ? (materialIndexMap[obj.materialSlots[0]] ?? 0) : 0,
+          }],
+        });
+        if (obj.materialSlots[0] && !(obj.materialSlots[0] in materialIndexMap)) {
+          const m = s.materials[obj.materialSlots[0]];
+          if (m) {
+            const matIdx = materials.length;
+            materialIndexMap[obj.materialSlots[0]] = matIdx;
+            materials.push({
+              name: m.name,
+              pbrMetallicRoughness: {
+                baseColorFactor: hexToRgba(m.baseColor, m.opacity),
+                metallicFactor: m.metallic,
+                roughnessFactor: m.roughness,
+              },
+            });
+          }
+        }
+        nodes.push({
+          name: obj.name,
+          mesh: meshes.length - 1,
+          translation: obj.position,
+          rotation: [0, 0, 0, 1], // identity quaternion (euler→quat omitted for simplicity)
+          scale: obj.scale,
+        });
+      } else {
+        nodes.push({ name: obj.name, translation: obj.position });
+      }
+      void idx;
+    });
+    return {
+      asset: { version: "2.0", generator: "Kandler by Kantasu" },
+      scene: 0,
+      scenes: [{ nodes: nodes.map((_, i) => i) }],
+      nodes,
+      meshes,
+      materials: materials.length ? materials : undefined,
+    };
+  },
+
+  exportOBJ: () => {
+    const s = get();
+    const lines: string[] = ["# Kandler OBJ export — by Kantasu"];
+    let vOffset = 0;
+    for (const obj of Object.values(s.objects)) {
+      if (obj.kind !== "mesh" || !obj.mesh) continue;
+      lines.push(`o ${obj.name}`);
+      for (const v of obj.mesh.vertices) {
+        lines.push(`v ${v.x} ${v.y} ${v.z}`);
+      }
+      for (const f of obj.mesh.faces) {
+        const indices = f.indices.map(i => i + 1 + vOffset);
+        lines.push(`f ${indices.join(" ")}`);
+      }
+      vOffset += obj.mesh.vertices.length;
+    }
+    return lines.join("\n");
+  },
+
   newScene: () => set(() => {
     const cube = defaultCube();
     const light = defaultLight();
@@ -970,6 +1174,167 @@ export const useStore = create<KandlerState>((set, get) => ({
       materials: { [mat.id]: mat },
       tracks: [],
       render: defaultRender,
+      gpLayers: [{ id: uid("gp"), name: "Layer 1", color: "#b388ff", opacity: 1, visible: true, locked: false }],
+      gpStrokes: [],
+      activeGpLayer: null,
+      physicsPlaying: false,
+      physicsTime: 0,
+      consoleHistory: [],
     };
+  }),
+
+  // ---------- Grease Pencil ----------
+  addGpLayer: (name) => set((s) => ({
+    gpLayers: [...s.gpLayers, { id: uid("gp"), name, color: "#b388ff", opacity: 1, visible: true, locked: false }],
+  })),
+  addGpStroke: (stroke) => set((s) => ({ gpStrokes: [...s.gpStrokes, stroke] })),
+  clearGpStrokes: () => set({ gpStrokes: [] }),
+  setActiveGpLayer: (id) => set({ activeGpLayer: id }),
+
+  // ---------- Physics ----------
+  setPhysicsPlaying: (playing) => set({ physicsPlaying: playing }),
+  stepPhysics: (dt) => set((s) => {
+    // Simple gravity + collision with ground plane (z=0)
+    const newObjects = { ...s.objects };
+    for (const id of Object.keys(newObjects)) {
+      const obj = newObjects[id];
+      if (!obj.physics || !obj.physics.enabled || obj.physics.isStatic) continue;
+      const p = obj.physics;
+      if (p.type === "rigid-body") {
+        // Apply gravity
+        const newVel: [number, number, number] = [
+          p.velocity[0],
+          p.velocity[1],
+          p.velocity[2] - 9.81 * dt,
+        ];
+        let newPos: [number, number, number] = [
+          obj.position[0] + newVel[0] * dt,
+          obj.position[1] + newVel[1] * dt,
+          obj.position[2] + newVel[2] * dt,
+        ];
+        // Ground collision (object bounding sphere ~1 unit)
+        if (newPos[2] < 1) {
+          newPos[2] = 1;
+          newVel[2] = -newVel[2] * p.bounce;
+          newVel[0] *= 1 - p.friction * dt;
+          newVel[1] *= 1 - p.friction * dt;
+        }
+        newObjects[id] = {
+          ...obj,
+          position: newPos,
+          physics: { ...p, velocity: newVel },
+        };
+      } else if (p.type === "cloth" || p.type === "soft-body") {
+        // Simple per-vertex displacement based on velocity field — full cloth sim would need edge springs
+        // Approximate: oscillate the mesh vertices
+        if (obj.mesh) {
+          const newMesh = { ...obj.mesh, vertices: obj.mesh.vertices.map((v, i) => ({
+            ...v,
+            z: v.z + Math.sin((s.physicsTime + i) * 5) * 0.02 * p.stiffness,
+          })) };
+          newObjects[id] = { ...obj, mesh: newMesh };
+        }
+      } else if (p.type === "fluid") {
+        // Simple particle drift
+        const newVel = [...p.velocity] as [number, number, number];
+        newVel[0] += (Math.random() - 0.5) * p.viscosity;
+        newVel[1] += (Math.random() - 0.5) * p.viscosity;
+        newVel[2] += (Math.random() - 0.5) * p.viscosity;
+        newObjects[id] = {
+          ...obj,
+          position: [obj.position[0] + newVel[0] * dt, obj.position[1] + newVel[1] * dt, obj.position[2] + newVel[2] * dt],
+          physics: { ...p, velocity: newVel },
+        };
+      }
+    }
+    return { objects: newObjects, physicsTime: s.physicsTime + dt };
+  }),
+
+  // ---------- Console ----------
+  pushConsole: (entry) => set((s) => ({ consoleHistory: [...s.consoleHistory, entry].slice(-200) })),
+  clearConsole: () => set({ consoleHistory: [] }),
+
+  // ---------- Extended Object Operations ----------
+  addShapeKey: (objectId, name) => set((s) => {
+    const obj = s.objects[objectId]; if (!obj || !obj.mesh) return {};
+    const shapeKeys = obj.shapeKeys || [];
+    // If no basis exists, create one
+    if (shapeKeys.length === 0) {
+      shapeKeys.push({ id: uid("sk"), name: "Basis", deltas: {}, value: 1, isBasis: true });
+    }
+    shapeKeys.push({ id: uid("sk"), name, deltas: {}, value: 0, isBasis: false });
+    return { objects: { ...s.objects, [objectId]: { ...obj, shapeKeys } } };
+  }),
+  setShapeKeyValue: (objectId, keyId, value) => set((s) => {
+    const obj = s.objects[objectId]; if (!obj || !obj.shapeKeys) return {};
+    return {
+      objects: {
+        ...s.objects,
+        [objectId]: {
+          ...obj,
+          shapeKeys: obj.shapeKeys.map(sk => sk.id === keyId ? { ...sk, value } : sk),
+        },
+      },
+    };
+  }),
+  addBone: (objectId, bone) => set((s) => {
+    const obj = s.objects[objectId]; if (!obj) return {};
+    const armature = obj.armature || { bones: [], vertexGroups: {}, weights: {} };
+    armature.bones.push(bone);
+    return { objects: { ...s.objects, [objectId]: { ...obj, kind: "armature", armature } } };
+  }),
+  updateBone: (objectId, boneId, patch) => set((s) => {
+    const obj = s.objects[objectId]; if (!obj || !obj.armature) return {};
+    return {
+      objects: {
+        ...s.objects,
+        [objectId]: {
+          ...obj,
+          armature: {
+            ...obj.armature,
+            bones: obj.armature.bones.map(b => b.id === boneId ? { ...b, ...patch } : b),
+          },
+        },
+      },
+    };
+  }),
+  setShaderGraph: (objectId, graph) => set((s) => {
+    const obj = s.objects[objectId]; if (!obj) return {};
+    return { objects: { ...s.objects, [objectId]: { ...obj, shaderGraph: graph } } };
+  }),
+  setGeoNodeGraph: (objectId, graph) => set((s) => {
+    const obj = s.objects[objectId]; if (!obj) return {};
+    return { objects: { ...s.objects, [objectId]: { ...obj, geoNodeGraph: graph } } };
+  }),
+  setUvMaps: (objectId, maps) => set((s) => {
+    const obj = s.objects[objectId]; if (!obj) return {};
+    return { objects: { ...s.objects, [objectId]: { ...obj, uvMaps: maps } } };
+  }),
+  setTextureCanvas: (objectId, canvas) => set((s) => {
+    const obj = s.objects[objectId]; if (!obj) return {};
+    return { objects: { ...s.objects, [objectId]: { ...obj, textureCanvas: canvas } } };
+  }),
+  paintTextureAt: (objectId, u, v, color, brushSize) => set((s) => {
+    const obj = s.objects[objectId]; if (!obj) return {};
+    // Default 512x512 canvas if none exists
+    const W = obj.textureCanvas?.width || 512;
+    const H = obj.textureCanvas?.height || 512;
+    const pixels = obj.textureCanvas?.pixels ? [...obj.textureCanvas.pixels] : new Array(W * H * 4).fill(40);
+    const cx = Math.floor(u * W);
+    const cy = Math.floor((1 - v) * H);
+    const r2 = brushSize * brushSize;
+    for (let dy = -brushSize; dy <= brushSize; dy++) {
+      for (let dx = -brushSize; dx <= brushSize; dx++) {
+        if (dx * dx + dy * dy > r2) continue;
+        const x = cx + dx, y = cy + dy;
+        if (x < 0 || x >= W || y < 0 || y >= H) continue;
+        const idx = (y * W + x) * 4;
+        pixels[idx] = color[0];
+        pixels[idx + 1] = color[1];
+        pixels[idx + 2] = color[2];
+        pixels[idx + 3] = color[3];
+      }
+    }
+    return { objects: { ...s.objects, [objectId]: { ...obj, textureCanvas: { width: W, height: H, pixels } } } };
   }),
 }));

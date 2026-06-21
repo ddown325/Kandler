@@ -152,8 +152,38 @@ function loadScene() {
   input.click();
 }
 
+function downloadText(filename: string, content: string, mime = "application/json") {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function exportGLTF() {
-  useStore.getState().showToast("GLTF export — use the Render panel → Export menu", "info");
+  const data = useStore.getState().exportGLTF();
+  downloadText("kandler-scene.gltf", JSON.stringify(data, null, 2), "model/gltf+json");
+  useStore.getState().showToast("Exported GLTF", "success");
+}
+
+function exportOBJ() {
+  const data = useStore.getState().exportOBJ();
+  downloadText("kandler-scene.obj", data, "model/obj");
+  useStore.getState().showToast("Exported OBJ", "success");
+}
+
+function exportThreeScene() {
+  const data = useStore.getState().exportThreeScene();
+  downloadText("kandler-scene.three.json", JSON.stringify(data, null, 2), "application/json");
+  useStore.getState().showToast("Exported Three.js Scene JSON", "success");
+}
+
+function exportKandler() {
+  const data = useStore.getState().exportScene();
+  downloadText(`${data.project.name || "kandler-scene"}.kandler.json`, JSON.stringify(data, null, 2), "application/json");
+  useStore.getState().showToast("Saved Kandler scene", "success");
 }
 
 function newScene() {
@@ -226,8 +256,20 @@ export default function TopMenuBar() {
         { label: "Open…", shortcut: "Ctrl+O", action: loadScene },
         { label: "Save", shortcut: "Ctrl+S", action: saveScene },
         { divider: true, label: "" },
-        { label: "Export GLTF/OBJ…", action: exportGLTF },
-        { label: "Export Render Image (PNG)", action: () => useStore.getState().showToast("Use Render panel → Render Image", "info") },
+        { label: "Export Kandler Scene (.kandler.json)", action: exportKandler },
+        { label: "Export Three.js Scene (.three.json)", action: exportThreeScene },
+        { label: "Export GLTF 2.0 (.gltf)", action: exportGLTF },
+        { label: "Export OBJ (.obj)", action: exportOBJ },
+        { label: "Export Render Image (PNG)", action: () => {
+          const canvas = document.querySelector("canvas");
+          if (!canvas) return;
+          const url = canvas.toDataURL("image/png");
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `kandler-render-${Date.now()}.png`;
+          a.click();
+          useStore.getState().showToast("Render saved as PNG", "success");
+        } },
         { divider: true, label: "" },
         { label: "Install Kandler to Device…", action: () => {
           const ev = (window as any).__kandlerInstallPrompt;

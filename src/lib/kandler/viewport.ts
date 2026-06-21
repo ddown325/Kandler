@@ -296,6 +296,17 @@ export function createViewport(container: HTMLElement): ViewportHandle {
           result = screwMesh(result, angle * Math.PI / 180, steps, iterations);
           break;
         }
+        case "boolean": {
+          // Find target object in scene, apply boolean op
+          const targetId = mod.params.target as string;
+          const op = (mod.params.operation as string) || "union";
+          const targetObj = useStore.getState().objects[targetId || ""];
+          if (targetObj && targetObj.mesh) {
+            const targetMesh = applyModifiers(targetObj.mesh, targetObj.modifiers || []);
+            result = booleanOpMesh(result, targetMesh, op as any);
+          }
+          break;
+        }
         default:
           // Unsupported modifiers — pass through
           break;
@@ -444,6 +455,34 @@ export function createViewport(container: HTMLElement): ViewportHandle {
       }
     }
     return { vertices: verts, edges: [], faces };
+  }
+
+  function booleanOpMesh(a: any, b: any, operation: "union" | "difference" | "intersect"): any {
+    // Simple geometric boolean: keep A faces based on whether their centroid is inside B's bounding box
+    let minB = { x: Infinity, y: Infinity, z: Infinity };
+    let maxB = { x: -Infinity, y: -Infinity, z: -Infinity };
+    for (const v of b.vertices) {
+      minB = { x: Math.min(minB.x, v.x), y: Math.min(minB.y, v.y), z: Math.min(minB.z, v.z) };
+      maxB = { x: Math.max(maxB.x, v.x), y: Math.max(maxB.y, v.y), z: Math.max(maxB.z, v.z) };
+    }
+    const combinedVerts = [...a.vertices, ...b.vertices];
+    const bOffset = a.vertices.length;
+    const faces: any[] = [];
+    const insideB = (face: any) => {
+      let cx = 0, cy = 0, cz = 0;
+      for (const i of face.indices) { cx += a.vertices[i].x; cy += a.vertices[i].y; cz += a.vertices[i].z; }
+      cx /= face.indices.length; cy /= face.indices.length; cz /= face.indices.length;
+      return cx >= minB.x && cx <= maxB.x && cy >= minB.y && cy <= maxB.y && cz >= minB.z && cz <= maxB.z;
+    };
+    if (operation === "union") {
+      for (const f of a.faces) if (!insideB(f)) faces.push(f);
+      for (const f of b.faces) faces.push({ indices: f.indices.map((i: number) => i + bOffset), materialIndex: f.materialIndex });
+    } else if (operation === "difference") {
+      for (const f of a.faces) if (!insideB(f)) faces.push(f);
+    } else if (operation === "intersect") {
+      for (const f of a.faces) if (insideB(f)) faces.push(f);
+    }
+    return { vertices: combinedVerts, edges: [], faces };
   }
 
   // --- Modifier implementations (simplified, geometric) ---

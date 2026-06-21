@@ -10,9 +10,12 @@
 import { useState } from "react";
 import { useStore, defaultMaterial, uid, ModifierType, Modifier } from "@/lib/kandler/store";
 import { subdivideMesh, extrudeFaces, insetFaces, deleteFaces, deleteVertices, mergeVertices, triangulateFaces, flipNormals } from "@/lib/kandler/mesh-ops";
+import { planarUnwrap, sculptStroke, type SculptBrush } from "@/lib/kandler/mesh-ops-advanced";
 import { Icon, IconName } from "@/components/kandler/Icon";
+import { ShaderEditor } from "@/components/kandler/panels/ShaderEditor";
+import { ScriptingConsole } from "@/components/kandler/panels/ScriptingConsole";
 
-type Tab = "render" | "output" | "scene" | "world" | "object" | "modifiers" | "mesh" | "material" | "light" | "camera";
+type Tab = "render" | "output" | "scene" | "world" | "object" | "modifiers" | "mesh" | "material" | "light" | "camera" | "sculpt" | "physics" | "gpencil" | "shader" | "uv" | "armature" | "shapekeys" | "geo" | "script";
 
 const TABS: { id: Tab; icon: IconName; label: string }[] = [
   { id: "render", icon: "tab-render", label: "Render" },
@@ -22,9 +25,18 @@ const TABS: { id: Tab; icon: IconName; label: string }[] = [
   { id: "object", icon: "tab-object", label: "Object" },
   { id: "modifiers", icon: "tab-modifiers", label: "Modifiers" },
   { id: "mesh", icon: "tab-mesh", label: "Mesh" },
+  { id: "sculpt", icon: "tab-sculpt", label: "Sculpt" },
   { id: "material", icon: "tab-material", label: "Material" },
+  { id: "shader", icon: "tab-shader", label: "Shader Nodes" },
+  { id: "uv", icon: "tab-uv", label: "UV Editor" },
   { id: "light", icon: "tab-light", label: "Light" },
   { id: "camera", icon: "tab-camera", label: "Camera" },
+  { id: "physics", icon: "tab-physics", label: "Physics" },
+  { id: "gpencil", icon: "tab-gpencil", label: "Grease Pencil" },
+  { id: "armature", icon: "tab-armature", label: "Armature" },
+  { id: "shapekeys", icon: "tab-shapekeys", label: "Shape Keys" },
+  { id: "geo", icon: "tab-geo", label: "Geometry Nodes" },
+  { id: "script", icon: "tab-script", label: "Scripting" },
 ];
 
 export default function PropertiesPanel() {
@@ -50,7 +62,7 @@ export default function PropertiesPanel() {
       </div>
 
       <div className="flex-1 overflow-y-auto kandler-scroll p-2">
-        {!obj && tab !== "render" && tab !== "output" && tab !== "scene" && tab !== "world" ? (
+        {!obj && tab !== "render" && tab !== "output" && tab !== "scene" && tab !== "world" && tab !== "gpencil" && tab !== "script" ? (
           <div className="text-white/40 text-[12px] text-center py-8">
             No active object. Click an object in the viewport to edit its properties.
           </div>
@@ -59,13 +71,22 @@ export default function PropertiesPanel() {
             {tab === "object" && obj && <ObjectTab obj={obj} />}
             {tab === "modifiers" && obj && <ModifiersTab obj={obj} />}
             {tab === "mesh" && obj && <MeshTab obj={obj} />}
+            {tab === "sculpt" && obj && <SculptTab obj={obj} />}
             {tab === "material" && obj && <MaterialTab obj={obj} />}
+            {tab === "shader" && obj && <ShaderTab obj={obj} />}
+            {tab === "uv" && obj && <UVTab obj={obj} />}
             {tab === "light" && obj && <LightTab obj={obj} />}
             {tab === "camera" && obj && <CameraTab obj={obj} />}
+            {tab === "physics" && obj && <PhysicsTab obj={obj} />}
+            {tab === "gpencil" && <GreasePencilTab />}
+            {tab === "armature" && obj && <ArmatureTab obj={obj} />}
+            {tab === "shapekeys" && obj && <ShapeKeysTab obj={obj} />}
+            {tab === "geo" && obj && <GeoNodesTab obj={obj} />}
             {tab === "render" && <RenderTab />}
             {tab === "output" && <OutputTab />}
             {tab === "scene" && <SceneTab />}
             {tab === "world" && <WorldTab />}
+            {tab === "script" && <ScriptTab />}
           </>
         )}
       </div>
@@ -803,6 +824,482 @@ function WorldTab() {
           </>
         )}
       </Section>
+    </div>
+  );
+}
+
+// ---------- Sculpt Tab ----------
+function SculptTab({ obj }: { obj: any }) {
+  const updateMesh = useStore(s => s.updateMesh);
+  const setEditMode = useStore(s => s.setEditMode);
+  const [brush, setBrush] = useState<SculptBrush>("draw");
+  const [radius, setRadius] = useState(1);
+  const [strength, setStrength] = useState(0.5);
+
+  const brushes: SculptBrush[] = ["grab", "smooth", "inflate", "draw", "drag-dot", "flatten", "pinch"];
+
+  const applyBrush = (axis: "x" | "y" | "z" = "z") => {
+    if (!obj.mesh) return;
+    const center: [number, number, number] = [0, 0, 0];
+    const delta: [number, number, number] = axis === "x" ? [strength, 0, 0] : axis === "y" ? [0, strength, 0] : [0, 0, strength];
+    const newMesh = sculptStroke(obj.mesh, brush, center, radius, strength, delta);
+    updateMesh(obj.id, () => newMesh);
+    useStore.getState().showToast(`${brush} brush applied`, "success");
+  };
+
+  return (
+    <div>
+      <Section title="Sculpt Mode">
+        <Row label="Mode">
+          <button
+            onClick={() => setEditMode("sculpt")}
+            className="px-2 py-1 bg-[#b388ff] text-black text-[11px] rounded"
+          >
+            Enter Sculpt Mode
+          </button>
+        </Row>
+        <Row label="Object">
+          <span className="text-[11px] text-white/60">{obj.name} ({obj.vertexCount} verts)</span>
+        </Row>
+      </Section>
+      <Section title="Brush">
+        <Row label="Type">
+          <select className="kandler-input" value={brush} onChange={e => setBrush(e.target.value as SculptBrush)}>
+            {brushes.map(b => <option key={b} value={b}>{b}</option>)}
+          </select>
+        </Row>
+        <Row label="Radius"><Slider value={radius} min={0.1} max={5} step={0.1} onChange={setRadius} /></Row>
+        <Row label="Strength"><Slider value={strength} min={0.01} max={2} step={0.05} onChange={setStrength} /></Row>
+      </Section>
+      <Section title="Quick Apply (on origin)">
+        <div className="grid grid-cols-3 gap-1">
+          <button onClick={() => applyBrush("x")} className="px-2 py-1 bg-white/5 hover:bg-[#b388ff] hover:text-black text-[10px] rounded">+X</button>
+          <button onClick={() => applyBrush("y")} className="px-2 py-1 bg-white/5 hover:bg-[#b388ff] hover:text-black text-[10px] rounded">+Y</button>
+          <button onClick={() => applyBrush("z")} className="px-2 py-1 bg-white/5 hover:bg-[#b388ff] hover:text-black text-[10px] rounded">+Z</button>
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+// ---------- Shader Tab ----------
+function ShaderTab({ obj }: { obj: any }) {
+  void obj;
+  return (
+    <div className="h-[600px] -m-2">
+      <ShaderEditor onClose={() => useStore.getState().showToast("Shader editor remains active", "info")} />
+    </div>
+  );
+}
+
+// ---------- UV Editor Tab ----------
+function UVTab({ obj }: { obj: any }) {
+  const setUvMaps = useStore(s => s.setUvMaps);
+  const uvMaps = obj.uvMaps || [];
+  const [axis, setAxis] = useState<"x" | "y" | "z">("z");
+
+  const unwrap = () => {
+    if (!obj.mesh) return;
+    const { uvs, faceUVs } = planarUnwrap(obj.mesh, axis);
+    setUvMaps(obj.id, [{ uvs, faceUVs, seams: [] }]);
+    useStore.getState().showToast(`UV unwrapped on ${axis.toUpperCase()} axis`, "success");
+  };
+
+  return (
+    <div>
+      <Section title="UV Mapping">
+        <Row label="Projection">
+          <select className="kandler-input" value={axis} onChange={e => setAxis(e.target.value as any)}>
+            <option value="z">XY Plane (Z-axis)</option>
+            <option value="x">YZ Plane (X-axis)</option>
+            <option value="y">XZ Plane (Y-axis)</option>
+          </select>
+        </Row>
+        <button
+          onClick={unwrap}
+          className="w-full px-2 py-1 bg-[#b388ff] text-black text-[11px] rounded font-medium"
+        >
+          Unwrap (Planar)
+        </button>
+      </Section>
+      <Section title="UV Preview">
+        <div className="bg-[#1a1626] border border-[#3d3654] rounded p-2 aspect-square">
+          <canvas
+            ref={(c) => {
+              if (!c || !obj.mesh) return;
+              const ctx = c.getContext("2d");
+              if (!ctx) return;
+              c.width = 240; c.height = 240;
+              ctx.fillStyle = "#1a1626";
+              ctx.fillRect(0, 0, 240, 240);
+              ctx.strokeStyle = "#2d2840";
+              for (let i = 0; i <= 8; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * 30, 0); ctx.lineTo(i * 30, 240);
+                ctx.moveTo(0, i * 30); ctx.lineTo(240, i * 30);
+                ctx.stroke();
+              }
+              const map = uvMaps[0];
+              if (map) {
+                ctx.strokeStyle = "#b388ff";
+                ctx.lineWidth = 1.5;
+                for (const faceUV of map.faceUVs) {
+                  ctx.beginPath();
+                  faceUV.forEach((uvIdx: number, i: number) => {
+                    const [u, v] = map.uvs[uvIdx];
+                    const x = u * 240, y = (1 - v) * 240;
+                    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                  });
+                  ctx.closePath();
+                  ctx.stroke();
+                }
+              }
+            }}
+            className="w-full h-full"
+          />
+        </div>
+      </Section>
+      <Section title="Texture Paint">
+        <Row label="Canvas">
+          <button
+            onClick={() => {
+              useStore.getState().setTextureCanvas(obj.id, { width: 512, height: 512, pixels: new Array(512 * 512 * 4).fill(40) });
+              useStore.getState().showToast("Texture canvas created (512x512)", "success");
+            }}
+            className="px-2 py-1 bg-[#b388ff] text-black text-[11px] rounded"
+          >
+            Init 512×512 Canvas
+          </button>
+        </Row>
+      </Section>
+    </div>
+  );
+}
+
+// ---------- Physics Tab ----------
+function PhysicsTab({ obj }: { obj: any }) {
+  const update = useStore(s => s.updateObject);
+  const setPhysicsPlaying = useStore(s => s.setPhysicsPlaying);
+  const physicsPlaying = useStore(s => s.physicsPlaying);
+  const p = obj.physics;
+
+  const setPhysics = (patch: any) => {
+    update(obj.id, {
+      physics: {
+        id: p?.id || `phys_${Date.now()}`,
+        type: p?.type || "rigid-body",
+        enabled: p?.enabled ?? true,
+        mass: p?.mass ?? 1,
+        friction: p?.friction ?? 0.5,
+        bounce: p?.bounce ?? 0.3,
+        isStatic: p?.isStatic ?? false,
+        stiffness: p?.stiffness ?? 0.5,
+        damping: p?.damping ?? 0.1,
+        viscosity: p?.viscosity ?? 0.1,
+        density: p?.density ?? 1,
+        velocity: p?.velocity || [0, 0, 0],
+        angularVelocity: p?.angularVelocity || [0, 0, 0],
+        particleCount: p?.particleCount || 100,
+        particleLifetime: p?.particleLifetime || 5,
+        ...patch,
+      },
+    });
+  };
+
+  return (
+    <div>
+      <Section title="Physics">
+        <Row label="Type">
+          <select
+            className="kandler-input"
+            value={p?.type || "rigid-body"}
+            onChange={e => setPhysics({ type: e.target.value })}
+          >
+            <option value="rigid-body">Rigid Body</option>
+            <option value="cloth">Cloth</option>
+            <option value="soft-body">Soft Body</option>
+            <option value="fluid">Fluid</option>
+            <option value="smoke">Smoke</option>
+            <option value="particle">Particle</option>
+          </select>
+        </Row>
+        <Row label="Enabled"><input type="checkbox" checked={p?.enabled ?? false} onChange={e => setPhysics({ enabled: e.target.checked })} /></Row>
+      </Section>
+      {p?.type === "rigid-body" && (
+        <Section title="Rigid Body">
+          <Row label="Mass"><Slider value={p?.mass ?? 1} min={0.01} max={100} step={0.1} onChange={v => setPhysics({ mass: v })} /></Row>
+          <Row label="Friction"><Slider value={p?.friction ?? 0.5} min={0} max={1} step={0.05} onChange={v => setPhysics({ friction: v })} /></Row>
+          <Row label="Bounce"><Slider value={p?.bounce ?? 0.3} min={0} max={1} step={0.05} onChange={v => setPhysics({ bounce: v })} /></Row>
+          <Row label="Static"><input type="checkbox" checked={p?.isStatic ?? false} onChange={e => setPhysics({ isStatic: e.target.checked })} /></Row>
+        </Section>
+      )}
+      {p?.type === "cloth" && (
+        <Section title="Cloth">
+          <Row label="Stiffness"><Slider value={p?.stiffness ?? 0.5} min={0} max={1} step={0.05} onChange={v => setPhysics({ stiffness: v })} /></Row>
+          <Row label="Damping"><Slider value={p?.damping ?? 0.1} min={0} max={1} step={0.05} onChange={v => setPhysics({ damping: v })} /></Row>
+        </Section>
+      )}
+      {p?.type === "fluid" && (
+        <Section title="Fluid">
+          <Row label="Viscosity"><Slider value={p?.viscosity ?? 0.1} min={0} max={1} step={0.01} onChange={v => setPhysics({ viscosity: v })} /></Row>
+          <Row label="Density"><Slider value={p?.density ?? 1} min={0.1} max={10} step={0.1} onChange={v => setPhysics({ density: v })} /></Row>
+        </Section>
+      )}
+      {p?.type === "particle" && (
+        <Section title="Particles">
+          <Row label="Count"><NumInput value={p?.particleCount ?? 100} step={10} onChange={v => setPhysics({ particleCount: v })} /></Row>
+          <Row label="Lifetime"><NumInput value={p?.particleLifetime ?? 5} step={0.5} onChange={v => setPhysics({ particleLifetime: v })} /></Row>
+        </Section>
+      )}
+      <Section title="Simulation">
+        <button
+          onClick={() => setPhysicsPlaying(!physicsPlaying)}
+          className={`w-full px-2 py-2 rounded font-medium text-[12px] ${physicsPlaying ? "bg-red-500 text-white" : "bg-[#b388ff] text-black"}`}
+        >
+          {physicsPlaying ? "Stop Simulation" : "Start Simulation"}
+        </button>
+      </Section>
+    </div>
+  );
+}
+
+// ---------- Grease Pencil Tab ----------
+function GreasePencilTab() {
+  const gpLayers = useStore(s => s.gpLayers);
+  const gpStrokes = useStore(s => s.gpStrokes);
+  const addGpLayer = useStore(s => s.addGpLayer);
+  const clearGpStrokes = useStore(s => s.clearGpStrokes);
+  const setActiveTool = useStore(s => s.setActiveTool);
+  const setActiveGpLayer = useStore(s => s.setActiveGpLayer);
+  const activeGpLayer = useStore(s => s.activeGpLayer);
+
+  return (
+    <div>
+      <Section title="Grease Pencil">
+        <Row label="Tool">
+          <button
+            onClick={() => setActiveTool("gpencil-draw")}
+            className="px-2 py-1 bg-[#b388ff] text-black text-[11px] rounded"
+          >
+            Activate Draw Tool
+          </button>
+        </Row>
+        <Row label="Strokes">
+          <span className="text-[11px] text-white/60">{gpStrokes.length} strokes</span>
+        </Row>
+        <button
+          onClick={clearGpStrokes}
+          className="w-full px-2 py-1 bg-red-500/80 text-white text-[10px] rounded"
+        >
+          Clear All Strokes
+        </button>
+      </Section>
+      <Section title="Layers">
+        <button
+          onClick={() => addGpLayer(`Layer ${gpLayers.length + 1}`)}
+          className="w-full px-2 py-1 bg-[#b388ff] text-black text-[11px] rounded mb-2"
+        >
+          + Add Layer
+        </button>
+        {gpLayers.map(layer => (
+          <div
+            key={layer.id}
+            className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer ${activeGpLayer === layer.id ? "bg-[#b388ff]/30" : "hover:bg-white/5"}`}
+            onClick={() => setActiveGpLayer(layer.id)}
+          >
+            <span className="w-3 h-3 rounded-full" style={{ background: layer.color }} />
+            <span className="text-[11px] text-white/80 flex-1">{layer.name}</span>
+            <span className="text-[10px] text-white/40">{gpStrokes.filter(s => s.layer === layer.id).length}</span>
+          </div>
+        ))}
+      </Section>
+      <Section title="Tips">
+        <div className="text-[10px] text-white/60 leading-relaxed">
+          Grease Pencil lets you draw 2D strokes directly in 3D space. Activate the draw tool, then click-drag in the viewport. Perfect for annotations, storyboards, and 2D-in-3D animation.
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+// ---------- Armature Tab ----------
+function ArmatureTab({ obj }: { obj: any }) {
+  const addBone = useStore(s => s.addBone);
+  const updateBone = useStore(s => s.updateBone);
+  const bones = obj.armature?.bones || [];
+
+  const addNewBone = () => {
+    addBone(obj.id, {
+      id: `bone_${Date.now()}`,
+      name: `Bone ${bones.length + 1}`,
+      head: [0, 0, 0],
+      tail: [0, 0, 1],
+      roll: 0,
+      useConnect: false,
+      useIk: false,
+      ikChainLength: 2,
+      constraints: [],
+    });
+    useStore.getState().showToast("Bone added", "success");
+  };
+
+  return (
+    <div>
+      <Section title="Armature">
+        <Row label="Bones">
+          <span className="text-[11px] text-white/60">{bones.length} bones</span>
+        </Row>
+        <button
+          onClick={addNewBone}
+          className="w-full px-2 py-1 bg-[#b388ff] text-black text-[11px] rounded mb-2"
+        >
+          + Add Bone
+        </button>
+      </Section>
+      {bones.map((bone: any, i: number) => (
+        <Section key={bone.id} title={`Bone ${i + 1}: ${bone.name}`}>
+          <Row label="Name">
+            <input
+              className="kandler-input"
+              value={bone.name}
+              onChange={e => updateBone(obj.id, bone.id, { name: e.target.value })}
+            />
+          </Row>
+          <Row label="Head X"><NumInput value={bone.head[0]} step={0.1} onChange={v => updateBone(obj.id, bone.id, { head: [v, bone.head[1], bone.head[2]] })} /></Row>
+          <Row label="Head Y"><NumInput value={bone.head[1]} step={0.1} onChange={v => updateBone(obj.id, bone.id, { head: [bone.head[0], v, bone.head[2]] })} /></Row>
+          <Row label="Head Z"><NumInput value={bone.head[2]} step={0.1} onChange={v => updateBone(obj.id, bone.id, { head: [bone.head[0], bone.head[1], v] })} /></Row>
+          <Row label="Tail X"><NumInput value={bone.tail[0]} step={0.1} onChange={v => updateBone(obj.id, bone.id, { tail: [v, bone.tail[1], bone.tail[2]] })} /></Row>
+          <Row label="Tail Y"><NumInput value={bone.tail[1]} step={0.1} onChange={v => updateBone(obj.id, bone.id, { tail: [bone.tail[0], v, bone.tail[2]] })} /></Row>
+          <Row label="Tail Z"><NumInput value={bone.tail[2]} step={0.1} onChange={v => updateBone(obj.id, bone.id, { tail: [bone.tail[0], bone.tail[1], v] })} /></Row>
+          <Row label="Use IK"><input type="checkbox" checked={bone.useIk} onChange={e => updateBone(obj.id, bone.id, { useIk: e.target.checked })} /></Row>
+          {bone.useIk && (
+            <Row label="IK Chain"><NumInput value={bone.ikChainLength} step={1} onChange={v => updateBone(obj.id, bone.id, { ikChainLength: v })} /></Row>
+          )}
+        </Section>
+      ))}
+    </div>
+  );
+}
+
+// ---------- Shape Keys Tab ----------
+function ShapeKeysTab({ obj }: { obj: any }) {
+  const addShapeKey = useStore(s => s.addShapeKey);
+  const setShapeKeyValue = useStore(s => s.setShapeKeyValue);
+  const shapeKeys = obj.shapeKeys || [];
+
+  return (
+    <div>
+      <Section title="Shape Keys">
+        <Row label="Count">
+          <span className="text-[11px] text-white/60">{shapeKeys.length} keys</span>
+        </Row>
+        <button
+          onClick={() => addShapeKey(obj.id, `Key ${shapeKeys.length}`)}
+          className="w-full px-2 py-1 bg-[#b388ff] text-black text-[11px] rounded"
+        >
+          + Add Shape Key
+        </button>
+      </Section>
+      {shapeKeys.map((sk: any) => (
+        <Section key={sk.id} title={sk.name + (sk.isBasis ? " (Basis)" : "")}>
+          {!sk.isBasis && (
+            <Row label="Value">
+              <Slider value={sk.value} min={0} max={1} step={0.01} onChange={v => setShapeKeyValue(obj.id, sk.id, v)} />
+            </Row>
+          )}
+          <Row label="Info">
+            <span className="text-[10px] text-white/50">{Object.keys(sk.deltas).length} vertex deltas</span>
+          </Row>
+        </Section>
+      ))}
+      <Section title="How to use">
+        <div className="text-[10px] text-white/60 leading-relaxed">
+          Shape keys (morph targets) blend between the basis shape and other stored shapes. Useful for facial animation, lip-sync, and morphing effects. The Value slider controls the blend amount.
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+// ---------- Geometry Nodes Tab ----------
+function GeoNodesTab({ obj }: { obj: any }) {
+  const setGeoNodeGraph = useStore(s => s.setGeoNodeGraph);
+  const updateMesh = useStore(s => s.updateMesh);
+  const graph = obj.geoNodeGraph || { nodes: [], output: null };
+
+  const addNode = (type: string) => {
+    const newId = `geo_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`;
+    const newGraph = {
+      nodes: [...graph.nodes, {
+        id: newId,
+        type,
+        name: type,
+        position: { x: 100 + graph.nodes.length * 30, y: 100 },
+        params: type === "input-primitive" ? { shape: "cube", size: 1 } : type === "array-linear" ? { count: 3, offset: 2, axis: "x" } : type === "subdivision" ? { levels: 1 } : type === "noise-displace" ? { strength: 0.5, scale: 1 } : {},
+        inputs: {},
+      }],
+      output: graph.output || newId,
+    };
+    setGeoNodeGraph(obj.id, newGraph);
+  };
+
+  return (
+    <div>
+      <Section title="Geometry Nodes">
+        <Row label="Nodes">
+          <span className="text-[11px] text-white/60">{graph.nodes.length} nodes</span>
+        </Row>
+      </Section>
+      <Section title="Add Node">
+        <div className="grid grid-cols-2 gap-1">
+          {["input-primitive", "transform", "array-linear", "subdivision", "noise-displace", "boolean"].map(type => (
+            <button
+              key={type}
+              onClick={() => addNode(type)}
+              className="px-2 py-1 bg-white/5 hover:bg-[#b388ff] hover:text-black text-[10px] rounded"
+            >
+              {type}
+            </button>
+          ))}
+        </div>
+      </Section>
+      <Section title="Apply Graph">
+        <button
+          onClick={async () => {
+            const { evaluateGeoNodeGraph } = await import("@/lib/kandler/mesh-ops-advanced");
+            const result = evaluateGeoNodeGraph(graph);
+            if (result) {
+              updateMesh(obj.id, () => result);
+              useStore.getState().showToast("Geometry nodes applied", "success");
+            } else {
+              useStore.getState().showToast("Graph produced no output", "warning");
+            }
+          }}
+          className="w-full px-2 py-1 bg-[#b388ff] text-black text-[11px] rounded font-medium"
+        >
+          Evaluate & Apply to Mesh
+        </button>
+      </Section>
+      <Section title="Graph Nodes">
+        {graph.nodes.length === 0 ? (
+          <div className="text-[10px] text-white/40 italic">No nodes yet. Add one above.</div>
+        ) : (
+          graph.nodes.map((n: any) => (
+            <div key={n.id} className="text-[10px] text-white/70 px-2 py-1 bg-white/5 rounded mb-1">
+              <span className="text-[#b388ff]">{n.type}</span> — {n.name}
+            </div>
+          ))
+        )}
+      </Section>
+    </div>
+  );
+}
+
+// ---------- Scripting Tab ----------
+function ScriptTab() {
+  return (
+    <div className="h-[600px] -m-2">
+      <ScriptingConsole onClose={() => useStore.getState().showToast("Console remains active", "info")} />
     </div>
   );
 }

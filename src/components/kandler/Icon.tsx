@@ -45,6 +45,15 @@ export type IconName =
   | "tab-material"
   | "tab-light"
   | "tab-camera"
+  | "tab-sculpt"
+  | "tab-physics"
+  | "tab-gpencil"
+  | "tab-shader"
+  | "tab-uv"
+  | "tab-armature"
+  | "tab-shapekeys"
+  | "tab-geo"
+  | "tab-script"
   // UI actions
   | "eye"
   | "eye-off"
@@ -161,6 +170,24 @@ export function Icon({ name, size = 16, className = "", color = "currentColor", 
       return (<svg {...props}><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.7.7 1 1.3 1 2.3v1h6v-1c0-1 .3-1.6 1-2.3A7 7 0 0 0 12 2z" /></svg>);
     case "tab-camera":
       return (<svg {...props}><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>);
+    case "tab-sculpt":
+      return (<svg {...props}><path d="M3 21c0-4 4-7 9-7s9 3 9 7" /><path d="M12 14V8M9 11l3-3 3 3" /><circle cx="12" cy="5" r="2" /></svg>);
+    case "tab-physics":
+      return (<svg {...props}><circle cx="12" cy="12" r="3" /><path d="M2 12c0-5 4-9 10-9s10 4 10 9-4 9-10 9-10-4-10-9z" strokeDasharray="2 2" /></svg>);
+    case "tab-gpencil":
+      return (<svg {...props}><path d="M3 17L17 3l4 4L7 21H3v-4z" /><path d="M14 6l4 4" /></svg>);
+    case "tab-shader":
+      return (<svg {...props}><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><line x1="10" y1="6.5" x2="14" y2="6.5" /><line x1="6.5" y1="10" x2="6.5" y2="14" /></svg>);
+    case "tab-uv":
+      return (<svg {...props}><rect x="3" y="3" width="18" height="18" rx="1" /><path d="M3 12h18M12 3v18" /><circle cx="12" cy="12" r="3" /></svg>);
+    case "tab-armature":
+      return (<svg {...props}><circle cx="12" cy="5" r="2" /><line x1="12" y1="7" x2="12" y2="13" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="12" y1="13" x2="12" y2="20" /><circle cx="8" cy="13" r="1.5" /><circle cx="16" cy="13" r="1.5" /><circle cx="12" cy="20" r="1.5" /></svg>);
+    case "tab-shapekeys":
+      return (<svg {...props}><path d="M3 12c2-4 6-4 9 0s7 4 9 0" /><path d="M3 18c2-4 6-4 9 0s7 4 9 0" opacity="0.5" /></svg>);
+    case "tab-geo":
+      return (<svg {...props}><circle cx="6" cy="6" r="2" /><circle cx="18" cy="6" r="2" /><circle cx="6" cy="18" r="2" /><circle cx="18" cy="18" r="2" /><line x1="6" y1="8" x2="6" y2="16" /><line x1="8" y1="6" x2="16" y2="6" /><line x1="8" y1="18" x2="16" y2="18" /><line x1="18" y1="8" x2="18" y2="16" /></svg>);
+    case "tab-script":
+      return (<svg {...props}><polyline points="8 6 4 12 8 18" /><polyline points="16 6 20 12 16 18" /></svg>);
 
     // --- UI actions ---
     case "eye":
