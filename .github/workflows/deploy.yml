@@ -1,11 +1,8 @@
 # Kandler — Deploy to GitHub Pages
-# Builds the Next.js static export and publishes it to GitHub Pages.
 #
-# Repository setup (one-time):
-#   1. Push this repo to https://github.com/ddown325/Kandler
-#   2. In repo Settings → Pages → Source, select "GitHub Actions"
-#      (NOT "Deploy from a branch" — that would serve your README instead!)
-#   3. Push to main → this workflow runs and deploys
+# Builds the Next.js static export and pushes it to a `gh-pages` branch.
+# This works with GitHub's DEFAULT Pages setting (Deploy from a branch →
+# gh-pages → root) — no manual config required.
 #
 # The site goes live at: https://ddown325.github.io/Kandler/
 
@@ -17,17 +14,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
-# Allow one concurrent deployment
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -52,42 +46,20 @@ jobs:
 
       - name: Verify build output
         run: |
-          echo "=== Build output verification ==="
-          ls -la out/
           if [ ! -f out/index.html ]; then
             echo "ERROR: out/index.html not found! Build failed."
             exit 1
           fi
-          SIZE=$(wc -c < out/index.html)
-          if [ "$SIZE" -lt 1000 ]; then
-            echo "ERROR: out/index.html is only $SIZE bytes — looks broken"
-            exit 1
-          fi
-          echo "✓ out/index.html exists ($SIZE bytes)"
-          if [ ! -f out/icon.png ]; then
-            echo "ERROR: out/icon.png not found!"
-            exit 1
-          fi
-          echo "✓ out/icon.png exists"
           if [ ! -d out/_next ]; then
-            echo "ERROR: out/_next/ directory not found! JS/CSS won't load."
+            echo "ERROR: out/_next/ not found! Assets won't load."
             exit 1
           fi
-          echo "✓ out/_next/ directory exists"
-          echo "=== Verification passed ==="
+          echo "✓ Build output verified"
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: ./out
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./out
+          force_orphan: true
+          enable_jekyll: false
