@@ -56,7 +56,7 @@ const tmpE = new THREE.Euler();
 
 export function createViewport(container: HTMLElement): ViewportHandle {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#1a1d23");
+  scene.background = new THREE.Color("#1a1626");
 
   const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 5000);
   camera.position.set(7, -5, 5);
@@ -74,13 +74,13 @@ export function createViewport(container: HTMLElement): ViewportHandle {
 
   // Grid
   const gridGroup = new THREE.Group();
-  const grid = new THREE.GridHelper(40, 40, 0x4a4a52, 0x2a2a30);
+  const grid = new THREE.GridHelper(40, 40, 0x6a5a8a, 0x3a3050);
   grid.rotation.x = Math.PI / 2; // Z-up
   (grid.material as THREE.Material).transparent = true;
   (grid.material as THREE.Material).opacity = 0.5;
   gridGroup.add(grid);
   // Sub grid (smaller, denser)
-  const subGrid = new THREE.GridHelper(4, 40, 0x6a6a72, 0x3a3a40);
+  const subGrid = new THREE.GridHelper(4, 40, 0x8a7aaa, 0x4a4060);
   subGrid.rotation.x = Math.PI / 2;
   (subGrid.material as THREE.Material).transparent = true;
   (subGrid.material as THREE.Material).opacity = 0.6;
@@ -94,7 +94,7 @@ export function createViewport(container: HTMLElement): ViewportHandle {
     const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), dir]);
     return new THREE.Line(geo, mat);
   };
-  axesGroup.add(makeAxisLine(0xe08a3c, new THREE.Vector3(2, 0, 0)));
+  axesGroup.add(makeAxisLine(0xb388ff, new THREE.Vector3(2, 0, 0)));
   axesGroup.add(makeAxisLine(0x4caf50, new THREE.Vector3(0, 2, 0)));
   axesGroup.add(makeAxisLine(0x5b9bd5, new THREE.Vector3(0, 0, 2)));
   scene.add(axesGroup);
@@ -112,7 +112,7 @@ export function createViewport(container: HTMLElement): ViewportHandle {
     new THREE.Vector3(0, -s, 0), new THREE.Vector3(0, s, 0),
     new THREE.Vector3(0, 0, -s), new THREE.Vector3(0, 0, s),
   ]);
-  const cursorMat = new THREE.LineBasicMaterial({ color: 0xe08a3c, linewidth: 2 });
+  const cursorMat = new THREE.LineBasicMaterial({ color: 0xb388ff, linewidth: 2 });
   const cursorLines = new THREE.LineSegments(cursorGeom, cursorMat);
   cursorGroup.add(cursorLines);
   scene.add(cursorGroup);
@@ -616,7 +616,7 @@ export function createViewport(container: HTMLElement): ViewportHandle {
         const geom = buildPrimitiveGeometry(obj);
         const mat = (obj.materialSlots.length && materialsRef[obj.materialSlots[0]])
           ? createMaterial(materialsRef[obj.materialSlots[0]])
-          : new THREE.MeshStandardMaterial({ color: 0xb0b0b0, roughness: 0.6 });
+          : new THREE.MeshStandardMaterial({ color: 0xc4b8e0, roughness: 0.6 });
         const mesh = new THREE.Mesh(geom, mat);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
@@ -629,7 +629,7 @@ export function createViewport(container: HTMLElement): ViewportHandle {
         scene.add(wire);
         // outline
         const outlineGeom = new THREE.EdgesGeometry(geom);
-        const outlineMat = new THREE.LineBasicMaterial({ color: 0xe08a3c, linewidth: 2 });
+        const outlineMat = new THREE.LineBasicMaterial({ color: 0xb388ff, linewidth: 2 });
         const outline = new THREE.LineSegments(outlineGeom, outlineMat);
         outline.visible = false;
         scene.add(outline);

@@ -28,7 +28,7 @@ export default function ToastNotifier() {
   if (!toast && !showInstall) return null;
 
   const colors: Record<string, string> = {
-    info: "bg-[#2a2d33] border-white/20 text-white",
+    info: "bg-[#2a2440] border-white/20 text-white",
     success: "bg-[#1d3a1d] border-green-500/40 text-green-100",
     warning: "bg-[#3a2f1d] border-amber-500/40 text-amber-100",
     error: "bg-[#3a1d1d] border-red-500/40 text-red-100",
@@ -37,14 +37,14 @@ export default function ToastNotifier() {
   return (
     <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none">
       {showInstall && (
-        <div className="pointer-events-auto bg-[#1f2228] border border-[#e08a3c]/40 rounded-lg shadow-2xl px-4 py-3 flex items-center gap-3">
+        <div className="pointer-events-auto bg-[#1e1a2e] border border-[#b388ff]/40 rounded-lg shadow-2xl px-4 py-3 flex items-center gap-3">
           <img src={asset("/icon.png")} alt="Kandler" className="w-7 h-7 rounded" />
           <div className="text-[12px] text-white/85">
             <div className="font-semibold">Install Kandler to your device</div>
             <div className="text-white/50 text-[11px]">Run locally — full offline support</div>
           </div>
           <button
-            className="px-3 py-1 bg-[#e08a3c] text-black text-[11px] rounded font-medium"
+            className="px-3 py-1 bg-[#b388ff] text-black text-[11px] rounded font-medium"
             onClick={() => {
               const ev = (window as any).__kandlerInstallPrompt;
               if (ev) {

@@ -24,7 +24,7 @@ export default function Outliner() {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   return (
-    <div className="h-full flex flex-col bg-[#1f2228] text-white kandler-ui">
+    <div className="h-full flex flex-col bg-[#1e1a2e] text-white kandler-ui">
       <div className="kandler-panel-header flex items-center justify-between px-3 py-2">
         <span>Outliner</span>
         <div className="flex gap-1">
@@ -36,7 +36,7 @@ export default function Outliner() {
               name: `Collection ${collections.length + 1}`,
               visible: true,
               selectable: true,
-              color: "#e08a3c",
+              color: "#b388ff",
               objects: [],
               expanded: true,
             })}
@@ -88,7 +88,7 @@ export default function Outliner() {
                 return (
                   <div
                     key={oid}
-                    className={`flex items-center pl-7 pr-2 py-1 text-[12px] cursor-pointer gap-1.5 ${active ? "bg-[#e08a3c]/30" : selected ? "bg-white/10" : "hover:bg-white/5"}`}
+                    className={`flex items-center pl-7 pr-2 py-1 text-[12px] cursor-pointer gap-1.5 ${active ? "bg-[#b388ff]/30" : selected ? "bg-white/10" : "hover:bg-white/5"}`}
                     onClick={(e) => select(oid, e.shiftKey)}
                     onDoubleClick={() => { setRenaming(oid); setRenameValue(obj.name); }}
                   >
@@ -137,7 +137,7 @@ export default function Outliner() {
         })}
       </div>
       {/* Stats footer */}
-      <div className="border-t border-[#2f323a] px-3 py-1.5 text-[10px] text-white/50 font-mono">
+      <div className="border-t border-[#2d2840] px-3 py-1.5 text-[10px] text-white/50 font-mono">
         {Object.keys(objects).length} objects · {collections.length} collections
       </div>
     </div>

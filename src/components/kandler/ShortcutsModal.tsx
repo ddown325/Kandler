@@ -125,11 +125,11 @@ export function ShortcutsModal({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <div
-        className="bg-[#1f2228] border border-[#3a3d44] rounded-lg shadow-2xl max-w-5xl w-full max-h-[85vh] overflow-hidden flex flex-col"
+        className="bg-[#1e1a2e] border border-[#3d3654] rounded-lg shadow-2xl max-w-5xl w-full max-h-[85vh] overflow-hidden flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-5 py-3 border-b border-[#3a3d44] flex items-center gap-3 bg-[#262931]">
+        <div className="px-5 py-3 border-b border-[#3d3654] flex items-center gap-3 bg-[#241f38]">
           <img src={(typeof window !== "undefined" && (window as any).__KANDLER_BASE__ ? (window as any).__KANDLER_BASE__ : "") + "/icon.png"} alt="Kandler" className="w-6 h-6 rounded" />
           <div className="flex-1">
             <div className="text-[14px] font-semibold text-white">Kandler — Keyboard Shortcuts</div>
@@ -148,13 +148,13 @@ export function ShortcutsModal({ onClose }: { onClose: () => void }) {
         <div className="flex-1 overflow-y-auto kandler-scroll p-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {GROUPS.map(group => (
-              <div key={group.title} className="bg-[#262931] border border-[#3a3d44] rounded-lg overflow-hidden">
+              <div key={group.title} className="bg-[#241f38] border border-[#3d3654] rounded-lg overflow-hidden">
                 <div className="kandler-section-title rounded-none m-0">{group.title}</div>
                 <div className="p-2">
                   {group.shortcuts.map((s, i) => (
                     <div key={i} className="flex items-center justify-between gap-2 py-1 px-1 hover:bg-white/5 rounded text-[11px]">
                       <span className="text-white/70">{s.description}</span>
-                      <kbd className="px-1.5 py-0.5 bg-[#1a1d23] border border-[#3a3d44] rounded text-[10px] font-mono text-[#e08a3c] whitespace-nowrap">{s.key}</kbd>
+                      <kbd className="px-1.5 py-0.5 bg-[#1a1626] border border-[#3d3654] rounded text-[10px] font-mono text-[#b388ff] whitespace-nowrap">{s.key}</kbd>
                     </div>
                   ))}
                 </div>

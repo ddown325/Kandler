@@ -32,8 +32,8 @@ export default function StatusBar() {
   }
 
   return (
-    <div className="h-6 bg-[#1a1d23] border-t border-[#2f323a] flex items-center px-3 gap-4 text-[11px] text-white/60 font-mono kandler-ui">
-      <span className="text-[#e08a3c] flex items-center"><Icon name="dot" size={10} /></span>
+    <div className="h-6 bg-[#1a1626] border-t border-[#2d2840] flex items-center px-3 gap-4 text-[11px] text-white/60 font-mono kandler-ui">
+      <span className="text-[#b388ff] flex items-center"><Icon name="dot" size={10} /></span>
       <span>Tool: <span className="text-white/85">{activeTool}</span></span>
       <span>Mode: <span className="text-white/85">{editMode}{editMode === "edit" ? `/${componentMode}` : ""}</span></span>
       <label className="flex items-center gap-1">

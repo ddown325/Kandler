@@ -165,12 +165,12 @@ function newScene() {
 function Menu({ menu, onClose }: { menu: MenuDef; onClose: () => void }) {
   return (
     <div
-      className="absolute top-full left-0 mt-0.5 bg-[#262931] border border-[#3a3d44] rounded shadow-2xl min-w-[220px] z-50 py-1"
+      className="absolute top-full left-0 mt-0.5 bg-[#241f38] border border-[#3d3654] rounded shadow-2xl min-w-[220px] z-50 py-1"
       onClick={(e) => e.stopPropagation()}
     >
       {menu.items.map((item, i) =>
         item.divider ? (
-          <div key={i} className="border-t border-[#3a3d44] my-1" />
+          <div key={i} className="border-t border-[#3d3654] my-1" />
         ) : (
           <button
             key={i}
@@ -179,7 +179,7 @@ function Menu({ menu, onClose }: { menu: MenuDef; onClose: () => void }) {
               item.action?.();
               onClose();
             }}
-            className="w-full text-left px-3 py-1.5 text-[12px] text-white/85 hover:bg-[#e08a3c] hover:text-black disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-white/85 flex items-center justify-between gap-4"
+            className="w-full text-left px-3 py-1.5 text-[12px] text-white/85 hover:bg-[#b388ff] hover:text-black disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-white/85 flex items-center justify-between gap-4"
           >
             <span>{item.label}</span>
             {item.shortcut && <span className="text-white/40 text-[10px] font-mono">{item.shortcut}</span>}
@@ -463,9 +463,9 @@ export default function TopMenuBar() {
   };
 
   return (
-    <div ref={ref} className="h-9 bg-[#1f2228] border-b border-[#2f323a] flex items-center px-2 gap-1 kandler-ui select-none">
+    <div ref={ref} className="h-9 bg-[#1e1a2e] border-b border-[#2d2840] flex items-center px-2 gap-1 kandler-ui select-none">
       {/* Brand */}
-      <div className="flex items-center gap-2 pr-3 mr-1 border-r border-[#2f323a] h-full">
+      <div className="flex items-center gap-2 pr-3 mr-1 border-r border-[#2d2840] h-full">
         <img src={asset("/icon.png")} alt="Kandler" className="w-6 h-6 rounded-sm" />
         <div className="flex flex-col leading-none">
           <span className="text-[13px] font-semibold text-white tracking-tight">Kandler</span>
@@ -506,7 +506,7 @@ export default function TopMenuBar() {
       <button
         onClick={saveScene}
         title="Save (Ctrl+S)"
-        className="px-3 h-7 rounded text-[12px] bg-[#e08a3c] text-black font-medium hover:brightness-110 flex items-center gap-1.5"
+        className="px-3 h-7 rounded text-[12px] bg-[#b388ff] text-black font-medium hover:brightness-110 flex items-center gap-1.5"
       >
         <Icon name="save" size={12} /> Save
       </button>

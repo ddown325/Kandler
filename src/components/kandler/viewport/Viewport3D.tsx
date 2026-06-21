@@ -303,7 +303,7 @@ export default function Viewport3D() {
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full bg-[#1a1d23] kandler-ui"
+      className="relative w-full h-full bg-[#1a1626] kandler-ui"
       onMouseDown={(e) => {
         if (e.button !== 0) return;
         const startX = e.clientX, startY = e.clientY;
@@ -396,11 +396,11 @@ export default function Viewport3D() {
     >
       {/* Viewport HUD - top right */}
       <div className="absolute top-2 right-2 flex gap-1 z-10 pointer-events-auto">
-        <div className="bg-[#2a2d33]/80 backdrop-blur px-2 py-1 rounded text-[11px] flex gap-1">
+        <div className="bg-[#2a2440]/80 backdrop-blur px-2 py-1 rounded text-[11px] flex gap-1">
           {(["wireframe", "solid", "material", "rendered"] as const).map(m => (
             <button
               key={m}
-              className={`px-2 py-0.5 rounded text-[10px] ${shadingMode === m ? "bg-[#e08a3c] text-black" : "text-white/70 hover:bg-white/10"}`}
+              className={`px-2 py-0.5 rounded text-[10px] ${shadingMode === m ? "bg-[#b388ff] text-black" : "text-white/70 hover:bg-white/10"}`}
               onClick={() => useStore.getState().setShadingMode(m)}
               title={m}
             >
@@ -412,7 +412,7 @@ export default function Viewport3D() {
 
       {/* Viewport HUD - top left (view presets) */}
       <div className="absolute top-2 left-2 flex gap-1 z-10">
-        <div className="bg-[#2a2d33]/80 backdrop-blur px-1 py-1 rounded flex gap-0.5">
+        <div className="bg-[#2a2440]/80 backdrop-blur px-1 py-1 rounded flex gap-0.5">
           {[
             { label: "Cam", mode: "camera" as const },
             { label: "Top", mode: "top" as const },
@@ -441,14 +441,14 @@ export default function Viewport3D() {
 
       {/* Mode indicator - bottom left */}
       <div className="absolute bottom-2 left-2 z-10 pointer-events-none">
-        <div className="bg-[#2a2d33]/80 backdrop-blur px-2 py-1 rounded text-[10px] text-white/70 font-mono">
+        <div className="bg-[#2a2440]/80 backdrop-blur px-2 py-1 rounded text-[10px] text-white/70 font-mono">
           {editMode.toUpperCase()} MODE {editMode === "edit" ? `· ${componentMode.toUpperCase()}` : ""} · TOOL: {activeTool.toUpperCase()}
         </div>
       </div>
 
       {/* Branding - bottom right */}
       <div className="absolute bottom-2 right-2 z-10 pointer-events-none">
-        <div className="bg-[#2a2d33]/80 backdrop-blur px-2 py-1 rounded text-[10px] text-white/40 font-mono">
+        <div className="bg-[#2a2440]/80 backdrop-blur px-2 py-1 rounded text-[10px] text-white/40 font-mono">
           Kandler · by Kantasu
         </div>
       </div>

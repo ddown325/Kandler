@@ -34,15 +34,15 @@ export default function PropertiesPanel() {
   const obj = activeId ? objects[activeId] : null;
 
   return (
-    <div className="h-full flex flex-col bg-[#1f2228] text-white kandler-ui">
+    <div className="h-full flex flex-col bg-[#1e1a2e] text-white kandler-ui">
       {/* Tab strip */}
-      <div className="flex border-b border-[#2f323a] overflow-x-auto kandler-scroll">
+      <div className="flex border-b border-[#2d2840] overflow-x-auto kandler-scroll">
         {TABS.map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             title={t.label}
-            className={`px-2.5 py-2 hover:bg-white/5 flex-shrink-0 flex items-center justify-center ${tab === t.id ? "bg-white/10 text-[#e08a3c]" : "text-white/60"}`}
+            className={`px-2.5 py-2 hover:bg-white/5 flex-shrink-0 flex items-center justify-center ${tab === t.id ? "bg-white/10 text-[#b388ff]" : "text-white/60"}`}
           >
             <Icon name={t.icon} size={16} />
           </button>
@@ -105,7 +105,7 @@ function ColorInput({ value, onChange }: { value: string; onChange: (v: string) 
         type="color"
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="w-6 h-6 rounded border border-[#3a3d44] cursor-pointer"
+        className="w-6 h-6 rounded border border-[#3d3654] cursor-pointer"
       />
       <input
         type="text"
@@ -127,7 +127,7 @@ function Slider({ value, min, max, step, onChange }: { value: number; min: numbe
         step={step}
         value={value}
         onChange={e => onChange(parseFloat(e.target.value))}
-        className="flex-1 accent-[#e08a3c]"
+        className="flex-1 accent-[#b388ff]"
       />
       <input
         type="number"
@@ -254,7 +254,7 @@ function MeshTab({ obj }: { obj: any }) {
         <Row label="Mode">
           <button
             onClick={() => setEditMode(editMode === "edit" ? "object" : "edit")}
-            className="px-2 py-1 bg-[#e08a3c] text-black text-[11px] rounded"
+            className="px-2 py-1 bg-[#b388ff] text-black text-[11px] rounded"
           >
             {editMode === "edit" ? "Exit Edit" : "Enter Edit"}
           </button>
@@ -266,7 +266,7 @@ function MeshTab({ obj }: { obj: any }) {
                 <button
                   key={m}
                   onClick={() => setComponentMode(m)}
-                  className={`px-2 py-1 text-[10px] rounded flex-1 ${componentMode === m ? "bg-[#e08a3c] text-black" : "bg-white/5 text-white/70"}`}
+                  className={`px-2 py-1 text-[10px] rounded flex-1 ${componentMode === m ? "bg-[#b388ff] text-black" : "bg-white/5 text-white/70"}`}
                 >
                   {m[0].toUpperCase()}
                 </button>
@@ -284,25 +284,25 @@ function MeshTab({ obj }: { obj: any }) {
       {editMode === "edit" && (
         <Section title="Mesh Operations">
           <div className="grid grid-cols-2 gap-1">
-            <button className="px-2 py-1 bg-white/5 hover:bg-[#e08a3c] hover:text-black text-[10px] rounded"
+            <button className="px-2 py-1 bg-white/5 hover:bg-[#b388ff] hover:text-black text-[10px] rounded"
               onClick={() => {
                 if (selection.faces.length) {
                   updateMesh(obj.id, m => extrudeFaces(m, selection.faces, 0.5));
                   useStore.getState().showToast("Extruded", "success");
                 }
               }}>Extrude (E)</button>
-            <button className="px-2 py-1 bg-white/5 hover:bg-[#e08a3c] hover:text-black text-[10px] rounded"
+            <button className="px-2 py-1 bg-white/5 hover:bg-[#b388ff] hover:text-black text-[10px] rounded"
               onClick={() => {
                 if (selection.faces.length) {
                   updateMesh(obj.id, m => insetFaces(m, selection.faces, 0.2));
                   useStore.getState().showToast("Inset", "success");
                 }
               }}>Inset (I)</button>
-            <button className="px-2 py-1 bg-white/5 hover:bg-[#e08a3c] hover:text-black text-[10px] rounded"
+            <button className="px-2 py-1 bg-white/5 hover:bg-[#b388ff] hover:text-black text-[10px] rounded"
               onClick={() => { updateMesh(obj.id, m => subdivideMesh(m, 1)); useStore.getState().showToast("Subdivided", "success"); }}>
               Subdivide (W)
             </button>
-            <button className="px-2 py-1 bg-white/5 hover:bg-[#e08a3c] hover:text-black text-[10px] rounded"
+            <button className="px-2 py-1 bg-white/5 hover:bg-[#b388ff] hover:text-black text-[10px] rounded"
               onClick={() => {
                 if (selection.vertices.length > 1) {
                   updateMesh(obj.id, m => mergeVertices(m, selection.vertices));
@@ -310,14 +310,14 @@ function MeshTab({ obj }: { obj: any }) {
                   useStore.getState().showToast("Merged", "success");
                 }
               }}>Merge (M)</button>
-            <button className="px-2 py-1 bg-white/5 hover:bg-[#e08a3c] hover:text-black text-[10px] rounded"
+            <button className="px-2 py-1 bg-white/5 hover:bg-[#b388ff] hover:text-black text-[10px] rounded"
               onClick={() => {
                 if (selection.faces.length) {
                   updateMesh(obj.id, m => triangulateFaces(m, selection.faces));
                   useStore.getState().showToast("Triangulated", "success");
                 }
               }}>Triangulate</button>
-            <button className="px-2 py-1 bg-white/5 hover:bg-[#e08a3c] hover:text-black text-[10px] rounded"
+            <button className="px-2 py-1 bg-white/5 hover:bg-[#b388ff] hover:text-black text-[10px] rounded"
               onClick={() => {
                 if (selection.faces.length) {
                   updateMesh(obj.id, m => flipNormals(m, selection.faces));
@@ -334,7 +334,7 @@ function MeshTab({ obj }: { obj: any }) {
                   useStore.getState().clearComponentSelection();
                 }
               }}>Delete</button>
-            <button className="px-2 py-1 bg-white/5 hover:bg-[#e08a3c] hover:text-black text-[10px] rounded"
+            <button className="px-2 py-1 bg-white/5 hover:bg-[#b388ff] hover:text-black text-[10px] rounded"
               onClick={() => useStore.getState().showToast("Fill — select 3+ verts and press F", "info")}>
               Fill (F)
             </button>
@@ -344,11 +344,11 @@ function MeshTab({ obj }: { obj: any }) {
 
       <Section title="Geometry Operations">
         <div className="grid grid-cols-1 gap-1">
-          <button className="px-2 py-1 bg-white/5 hover:bg-[#e08a3c] hover:text-black text-[10px] rounded"
+          <button className="px-2 py-1 bg-white/5 hover:bg-[#b388ff] hover:text-black text-[10px] rounded"
             onClick={() => { updateMesh(obj.id, m => subdivideMesh(m, 1)); useStore.getState().showToast("Subdivided", "success"); }}>
             Subdivide Mesh (1x)
           </button>
-          <button className="px-2 py-1 bg-white/5 hover:bg-[#e08a3c] hover:text-black text-[10px] rounded"
+          <button className="px-2 py-1 bg-white/5 hover:bg-[#b388ff] hover:text-black text-[10px] rounded"
             onClick={() => {
               // Recalculate — no-op for now, just feedback
               useStore.getState().showToast("Mesh validated", "success");
@@ -390,7 +390,7 @@ function MaterialTab({ obj }: { obj: any }) {
             ))}
           </select>
           <button
-            className="px-2 py-0.5 bg-[#e08a3c] text-black text-[10px] rounded"
+            className="px-2 py-0.5 bg-[#b388ff] text-black text-[10px] rounded"
             onClick={() => {
               const m = defaultMaterial(`Material ${obj.materialSlots.length + 1}`);
               addMaterial(m);
@@ -585,7 +585,7 @@ function ModifiersTab({ obj }: { obj: any }) {
       <Section title="Add Modifier">
         <button
           onClick={() => setAdding(!adding)}
-          className="w-full px-2 py-1 bg-[#e08a3c] text-black text-[11px] rounded mb-2"
+          className="w-full px-2 py-1 bg-[#b388ff] text-black text-[11px] rounded mb-2"
         >
           {adding ? "Cancel" : "+ Add Modifier"}
         </button>
@@ -594,7 +594,7 @@ function ModifiersTab({ obj }: { obj: any }) {
             {MODIFIER_TYPES.map(m => (
               <button
                 key={m.type}
-                className="px-2 py-1 bg-white/5 hover:bg-[#e08a3c] hover:text-black text-[10px] rounded"
+                className="px-2 py-1 bg-white/5 hover:bg-[#b388ff] hover:text-black text-[10px] rounded"
                 onClick={() => {
                   addMod(obj.id, {
                     id: uid("mod"),
@@ -621,8 +621,8 @@ function ModifiersTab({ obj }: { obj: any }) {
         </div>
       ) : (
         obj.modifiers.map((mod: Modifier, i: number) => (
-          <div key={mod.id} className="border border-[#3a3d44] rounded mb-1">
-            <div className="bg-[#262931] px-2 py-1 flex items-center gap-1">
+          <div key={mod.id} className="border border-[#3d3654] rounded mb-1">
+            <div className="bg-[#241f38] px-2 py-1 flex items-center gap-1">
               <button
                 className="text-[10px] text-white/60"
                 onClick={() => updateMod(obj.id, mod.id, { expanded: !mod.expanded })}
@@ -702,7 +702,7 @@ function RenderTab() {
       </Section>
       <Section title="Render Image">
         <button
-          className="w-full px-2 py-2 bg-[#e08a3c] text-black font-medium text-[12px] rounded"
+          className="w-full px-2 py-2 bg-[#b388ff] text-black font-medium text-[12px] rounded"
           onClick={() => {
             const canvas = document.querySelector("canvas");
             if (!canvas) return;
@@ -745,7 +745,7 @@ function OutputTab() {
           {presets.map(p => (
             <button
               key={p.label}
-              className="px-2 py-1 bg-white/5 hover:bg-[#e08a3c] hover:text-black text-[10px] rounded"
+              className="px-2 py-1 bg-white/5 hover:bg-[#b388ff] hover:text-black text-[10px] rounded"
               onClick={() => update({ resolutionX: p.w, resolutionY: p.h })}
             >
               {p.label}<br /><span className="text-[9px] opacity-60">{p.w}×{p.h}</span>

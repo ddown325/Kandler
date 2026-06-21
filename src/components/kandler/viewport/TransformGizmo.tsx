@@ -199,7 +199,7 @@ export default function TransformGizmo() {
   // Render axis arrows (X red, Y green, Z blue) + center free-move handle
   const axisLen = 60;
   const axes: { id: Axis; color: string; label: string; dx: number; dy: number }[] = [
-    { id: "x", color: "#e08a3c", label: "X", dx: axisLen, dy: 0 },
+    { id: "x", color: "#b388ff", label: "X", dx: axisLen, dy: 0 },
     { id: "y", color: "#4caf50", label: "Y", dx: 0, dy: -axisLen },
     { id: "z", color: "#5b9bd5", label: "Z", dx: axisLen * 0.7, dy: axisLen * 0.7 },
   ];

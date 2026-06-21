@@ -33,10 +33,10 @@ export default function Toolbar() {
   const editMode = useStore(s => s.editMode);
 
   return (
-    <div className="w-11 bg-[#1f2228] border-r border-[#2f323a] flex flex-col items-center py-2 gap-1 kandler-ui">
+    <div className="w-11 bg-[#1e1a2e] border-r border-[#2d2840] flex flex-col items-center py-2 gap-1 kandler-ui">
       {TOOLS.map((t, i) =>
         "divider" in t ? (
-          <div key={i} className="w-6 h-px bg-[#2f323a] my-1" />
+          <div key={i} className="w-6 h-px bg-[#2d2840] my-1" />
         ) : (
           <button
             key={t.id}

@@ -557,9 +557,9 @@ const defaultRender: RenderSettings = {
   samples: 64,
   exposure: 1,
   ambientColor: "#404040",
-  backgroundColor: "#1a1d23",
+  backgroundColor: "#1a1626",
   fogEnabled: false,
-  fogColor: "#1a1d23",
+  fogColor: "#1a1626",
   fogNear: 5,
   fogFar: 50,
   shadowEnabled: true,
@@ -648,7 +648,7 @@ const initObjects: Record<string, SceneObject> = {
 const initObjectOrder = [initCube.id, initLight.id, initCam.id];
 const initMaterials = { [initMat.id]: initMat };
 const initCollections: Collection[] = [
-  { id: uid("col"), name: "Scene Collection", visible: true, selectable: true, color: "#e08a3c", objects: [initCube.id, initLight.id, initCam.id], expanded: true },
+  { id: uid("col"), name: "Scene Collection", visible: true, selectable: true, color: "#b388ff", objects: [initCube.id, initLight.id, initCam.id], expanded: true },
 ];
 
 export const useStore = create<KandlerState>((set, get) => ({
@@ -964,7 +964,7 @@ export const useStore = create<KandlerState>((set, get) => ({
       project: { ...defaultProject, created: Date.now(), modified: Date.now() },
       objects: obj,
       objectOrder: [cube.id, light.id, cam.id],
-      collections: [{ id: uid("col"), name: "Scene Collection", visible: true, selectable: true, color: "#e08a3c", objects: [cube.id, light.id, cam.id], expanded: true }],
+      collections: [{ id: uid("col"), name: "Scene Collection", visible: true, selectable: true, color: "#b388ff", objects: [cube.id, light.id, cam.id], expanded: true }],
       selection: { objects: [], vertices: [], edges: [], faces: [] },
       activeObjectId: null,
       materials: { [mat.id]: mat },

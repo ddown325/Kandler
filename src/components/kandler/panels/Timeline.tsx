@@ -57,7 +57,7 @@ export default function Timeline() {
     const h = canvas.height = canvas.offsetHeight * window.devicePixelRatio;
     ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
     const W = canvas.offsetWidth, H = canvas.offsetHeight;
-    ctx.fillStyle = "#1f2228";
+    ctx.fillStyle = "#1e1a2e";
     ctx.fillRect(0, 0, W, H);
     // Frame range
     const start = project.frameStart;
@@ -66,7 +66,7 @@ export default function Timeline() {
     const playheadX = ((project.currentFrame - start) / range) * W;
     // Frame ticks
     const tickInterval = Math.max(1, Math.floor(range / 20));
-    ctx.strokeStyle = "#3a3d44";
+    ctx.strokeStyle = "#3d3654";
     ctx.fillStyle = "#888";
     ctx.font = "10px ui-monospace, monospace";
     for (let f = start; f <= end; f += tickInterval) {
@@ -81,14 +81,14 @@ export default function Timeline() {
     for (const track of tracks) {
       for (const kf of track.keyframes) {
         const x = ((kf.frame - start) / range) * W;
-        ctx.fillStyle = "#e08a3c";
+        ctx.fillStyle = "#b388ff";
         ctx.beginPath();
         ctx.arc(x, H / 2, 3, 0, Math.PI * 2);
         ctx.fill();
       }
     }
     // Playhead
-    ctx.strokeStyle = "#e08a3c";
+    ctx.strokeStyle = "#b388ff";
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(playheadX, 0);
@@ -107,7 +107,7 @@ export default function Timeline() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#1f2228] text-white kandler-ui">
+    <div className="h-full flex flex-col bg-[#1e1a2e] text-white kandler-ui">
       <div className="kandler-panel-header flex items-center justify-between px-3 py-1.5">
         <span>Timeline</span>
         <div className="flex items-center gap-2 text-[11px]">
@@ -125,7 +125,7 @@ export default function Timeline() {
           </label>
         </div>
       </div>
-      <div className="flex items-center px-3 py-1 gap-2 border-b border-[#2f323a]">
+      <div className="flex items-center px-3 py-1 gap-2 border-b border-[#2d2840]">
         <button
           className="kandler-tool-btn"
           onClick={() => setCurrentFrame(project.frameStart)}
@@ -153,7 +153,7 @@ export default function Timeline() {
         ><Icon name="skip-forward" size={16} /></button>
         <div className="flex-1" />
         <span className="text-[11px] font-mono">
-          Frame: <span className="text-[#e08a3c] font-semibold">{project.currentFrame}</span> / {project.frameEnd}
+          Frame: <span className="text-[#b388ff] font-semibold">{project.currentFrame}</span> / {project.frameEnd}
         </span>
       </div>
       <div className="flex-1 relative">

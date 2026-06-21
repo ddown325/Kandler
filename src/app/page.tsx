@@ -45,7 +45,7 @@ export default function KandlerPage() {
   const showToolbar = useStore(s => s.showToolbar);
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden bg-[#1a1d23]">
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-[#1a1626]">
       <TopMenuBar />
 
       <div className="flex-1 flex overflow-hidden">
