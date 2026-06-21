@@ -4,6 +4,7 @@
 # Repository setup (one-time):
 #   1. Push this repo to https://github.com/ddown325/Kandler
 #   2. In repo Settings → Pages → Source, select "GitHub Actions"
+#      (NOT "Deploy from a branch" — that would serve your README instead!)
 #   3. Push to main → this workflow runs and deploys
 #
 # The site goes live at: https://ddown325.github.io/Kandler/
@@ -48,6 +49,32 @@ jobs:
 
       - name: Add .nojekyll
         run: touch out/.nojekyll
+
+      - name: Verify build output
+        run: |
+          echo "=== Build output verification ==="
+          ls -la out/
+          if [ ! -f out/index.html ]; then
+            echo "ERROR: out/index.html not found! Build failed."
+            exit 1
+          fi
+          SIZE=$(wc -c < out/index.html)
+          if [ "$SIZE" -lt 1000 ]; then
+            echo "ERROR: out/index.html is only $SIZE bytes — looks broken"
+            exit 1
+          fi
+          echo "✓ out/index.html exists ($SIZE bytes)"
+          if [ ! -f out/icon.png ]; then
+            echo "ERROR: out/icon.png not found!"
+            exit 1
+          fi
+          echo "✓ out/icon.png exists"
+          if [ ! -d out/_next ]; then
+            echo "ERROR: out/_next/ directory not found! JS/CSS won't load."
+            exit 1
+          fi
+          echo "✓ out/_next/ directory exists"
+          echo "=== Verification passed ==="
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
