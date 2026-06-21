@@ -270,12 +270,180 @@ export function createViewport(container: HTMLElement): ViewportHandle {
           result = decimateMesh(result, ratio);
           break;
         }
+        case "simple-deform": {
+          const mode = (mod.params.mode as string) || "bend";
+          const angle = (mod.params.angle as number) || 45;
+          const axis = (mod.params.axis as string) || "z";
+          result = simpleDeformMesh(result, mode, angle * Math.PI / 180, axis);
+          break;
+        }
+        case "displace": {
+          const strength = (mod.params.strength as number) || 1;
+          const texture = (mod.params.texture as string) || "noise";
+          result = displaceMesh(result, strength, texture);
+          break;
+        }
+        case "wave": {
+          const amplitude = (mod.params.amplitude as number) || 0.5;
+          const frequency = (mod.params.frequency as number) || 1;
+          result = waveMesh(result, amplitude, frequency);
+          break;
+        }
+        case "screw": {
+          const angle = (mod.params.angle as number) || 360;
+          const steps = (mod.params.steps as number) || 16;
+          const iterations = (mod.params.iterations as number) || 1;
+          result = screwMesh(result, angle * Math.PI / 180, steps, iterations);
+          break;
+        }
         default:
           // Unsupported modifiers — pass through
           break;
       }
     }
     return result;
+  }
+
+  // --- Simple Deform: bend / twist / taper / stretch ---
+  function simpleDeformMesh(mesh: any, mode: string, angleRad: number, axis: string): any {
+    const verts = mesh.vertices.map((v: any) => ({ ...v }));
+    // Compute bounds for deformation
+    let minB = { x: Infinity, y: Infinity, z: Infinity };
+    let maxB = { x: -Infinity, y: -Infinity, z: -Infinity };
+    for (const v of verts) {
+      minB = { x: Math.min(minB.x, v.x), y: Math.min(minB.y, v.y), z: Math.min(minB.z, v.z) };
+      maxB = { x: Math.max(maxB.x, v.x), y: Math.max(maxB.y, v.y), z: Math.max(maxB.z, v.z) };
+    }
+    const range = axis === "x" ? (maxB.x - minB.x) || 1
+                : axis === "y" ? (maxB.y - minB.y) || 1
+                : (maxB.z - minB.z) || 1;
+    const minA = axis === "x" ? minB.x : axis === "y" ? minB.y : minB.z;
+    for (const v of verts) {
+      const av = axis === "x" ? v.x : axis === "y" ? v.y : v.z;
+      const t = (av - minA) / range; // 0..1 along axis
+      if (mode === "bend") {
+        // Bend: rotate points around an axis perpendicular to the bend axis
+        const theta = (t - 0.5) * angleRad;
+        const cos = Math.cos(theta), sin = Math.sin(theta);
+        if (axis === "z") {
+          const nx = v.x, ny = v.y;
+          v.x = nx * cos - ny * sin;
+          v.y = nx * sin + ny * cos;
+        } else if (axis === "x") {
+          const ny = v.y, nz = v.z;
+          v.y = ny * cos - nz * sin;
+          v.z = ny * sin + nz * cos;
+        } else {
+          const nx = v.x, nz = v.z;
+          v.x = nx * cos - nz * sin;
+          v.z = nx * sin + nz * cos;
+        }
+      } else if (mode === "twist") {
+        // Twist: rotate points around the axis proportional to position along it
+        const theta = t * angleRad;
+        const cos = Math.cos(theta), sin = Math.sin(theta);
+        if (axis === "z") {
+          const nx = v.x, ny = v.y;
+          v.x = nx * cos - ny * sin;
+          v.y = nx * sin + ny * cos;
+        } else if (axis === "x") {
+          const ny = v.y, nz = v.z;
+          v.y = ny * cos - nz * sin;
+          v.z = ny * sin + nz * cos;
+        } else {
+          const nx = v.x, nz = v.z;
+          v.x = nx * cos - nz * sin;
+          v.z = nx * sin + nz * cos;
+        }
+      } else if (mode === "taper") {
+        // Taper: scale perpendicular axes by a factor based on position along axis
+        const factor = 1 + (t - 0.5) * angleRad / Math.PI;
+        if (axis === "z") { v.x *= factor; v.y *= factor; }
+        else if (axis === "x") { v.y *= factor; v.z *= factor; }
+        else { v.x *= factor; v.z *= factor; }
+      } else if (mode === "stretch") {
+        // Stretch: scale along axis, compress perpendicular
+        const stretchFactor = 1 + (angleRad / Math.PI) * 0.5;
+        const perpFactor = 1 / Math.sqrt(stretchFactor);
+        if (axis === "z") {
+          v.z = (v.z - minA) * stretchFactor + minA;
+          v.x *= perpFactor; v.y *= perpFactor;
+        } else if (axis === "x") {
+          v.x = (v.x - minA) * stretchFactor + minA;
+          v.y *= perpFactor; v.z *= perpFactor;
+        } else {
+          v.y = (v.y - minA) * stretchFactor + minA;
+          v.x *= perpFactor; v.z *= perpFactor;
+        }
+      }
+    }
+    return { vertices: verts, edges: mesh.edges, faces: mesh.faces };
+  }
+
+  function displaceMesh(mesh: any, strength: number, texture: string): any {
+    const verts = mesh.vertices.map((v: any) => ({ ...v }));
+    for (const v of verts) {
+      let disp = 0;
+      if (texture === "noise") {
+        // Pseudo-noise via sin combination
+        disp = Math.sin(v.x * 3) * Math.cos(v.y * 3) * Math.sin(v.z * 3);
+      } else if (texture === "checker") {
+        disp = ((Math.floor(v.x * 2) + Math.floor(v.y * 2) + Math.floor(v.z * 2)) % 2) * 0.5;
+      } else if (texture === "brick") {
+        disp = (Math.floor(v.x * 3) * 7 + Math.floor(v.y * 3) * 13 + Math.floor(v.z * 3) * 19) % 5 / 5;
+      } else {
+        disp = v.y;
+      }
+      // Displace along Y (object local up) — approximate
+      v.y += disp * strength;
+    }
+    return { vertices: verts, edges: mesh.edges, faces: mesh.faces };
+  }
+
+  function waveMesh(mesh: any, amplitude: number, frequency: number): any {
+    const verts = mesh.vertices.map((v: any) => ({ ...v }));
+    for (const v of verts) {
+      v.z += Math.sin(v.x * frequency * Math.PI) * amplitude;
+    }
+    return { vertices: verts, edges: mesh.edges, faces: mesh.faces };
+  }
+
+  function screwMesh(mesh: any, anglePerStep: number, steps: number, iterations: number): any {
+    // Revolve the mesh profile around the Z axis
+    const verts: any[] = [];
+    const faces: any[] = [];
+    for (let iter = 0; iter < iterations; iter++) {
+      for (let s = 0; s <= steps; s++) {
+        const theta = (s / steps) * anglePerStep * iter;
+        const cos = Math.cos(theta), sin = Math.sin(theta);
+        const baseIdx = verts.length;
+        for (const v of mesh.vertices) {
+          verts.push({
+            x: v.x * cos - v.y * sin,
+            y: v.x * sin + v.y * cos,
+            z: v.z + s * 0.1,
+          });
+        }
+        if (s > 0) {
+          const prevBase = baseIdx - mesh.vertices.length;
+          for (const f of mesh.faces) {
+            faces.push({
+              indices: f.indices.map((i: number) => i + baseIdx),
+              materialIndex: f.materialIndex,
+            });
+          }
+          // Stitching
+          for (let i = 0; i < mesh.vertices.length; i++) {
+            const next = (i + 1) % mesh.vertices.length;
+            faces.push({
+              indices: [prevBase + i, prevBase + next, baseIdx + next, baseIdx + i],
+              materialIndex: 0,
+            });
+          }
+        }
+      }
+    }
+    return { vertices: verts, edges: [], faces };
   }
 
   // --- Modifier implementations (simplified, geometric) ---
@@ -638,6 +806,12 @@ export function createViewport(container: HTMLElement): ViewportHandle {
     showAxesRef = state.showAxes;
     cursorRef = state.cursor.position;
 
+    // If we're in camera view, continuously update from the scene camera
+    // so the user sees live updates when they move/rotate the camera object.
+    if (viewportMode === "camera") {
+      applyCameraView();
+    }
+
     // Remove deleted objects
     for (const id of [...objectViews.keys()]) {
       if (!state.objects[id]) removeObjectView(id);
@@ -823,12 +997,22 @@ export function createViewport(container: HTMLElement): ViewportHandle {
       camera.up.set(0, 0, 1);
       camera.lookAt(0, 0, 0);
       orbit.azimuth = 0; orbit.polar = Math.PI / 2; orbit.target.set(0, 0, 0); orbit.distance = 15;
-    } else if (m === "camera" && activeCameraId) {
-      const obj = useStore.getState().objects[activeCameraId];
-      if (obj) {
-        camera.position.set(obj.position[0], obj.position[1], obj.position[2]);
+    } else if (m === "camera") {
+      // Pick the active camera, or the first camera in the scene
+      const s = useStore.getState();
+      let camId = activeCameraId;
+      if (!camId) {
+        const cams = Object.values(s.objects).filter(o => o.kind === "camera" && o.visible);
+        if (cams.length > 0) camId = cams[0].id;
+      }
+      if (camId) {
+        activeCameraId = camId;
+        applyCameraView();
+      } else {
+        // No camera — fall back to free orbit
         camera.up.set(0, 0, 1);
-        camera.rotation.set(obj.rotation[0], obj.rotation[1], obj.rotation[2]);
+        applyOrbit();
+        useStore.getState().showToast("No camera in scene — add one via Add → Camera", "warning");
       }
     } else {
       camera.up.set(0, 0, 1);
@@ -837,9 +1021,31 @@ export function createViewport(container: HTMLElement): ViewportHandle {
     render();
   }
 
+  function applyCameraView() {
+    if (!activeCameraId) return;
+    const obj = useStore.getState().objects[activeCameraId];
+    if (!obj || !obj.camera) return;
+    // Position
+    camera.position.set(obj.position[0], obj.position[1], obj.position[2]);
+    // Euler rotation (Z-up convention)
+    camera.up.set(0, 0, 1);
+    camera.rotation.set(obj.rotation[0], obj.rotation[1], obj.rotation[2], "ZYX");
+    // FOV
+    camera.fov = obj.camera.fov;
+    camera.near = obj.camera.near;
+    camera.far = obj.camera.far;
+    if (obj.camera.ortho) {
+      camera.toOrthographic?.();
+    } else {
+      // PerspectiveCamera is the default
+    }
+    camera.aspect = renderer.domElement.clientWidth / renderer.domElement.clientHeight;
+    camera.updateProjectionMatrix();
+  }
+
   function setActiveCamera(id: string | null) {
     activeCameraId = id;
-    if (id && viewportMode === "camera") setViewportMode("camera");
+    if (id && viewportMode === "camera") applyCameraView();
   }
 
   function resize(w: number, h: number) {

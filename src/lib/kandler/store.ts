@@ -33,7 +33,6 @@ export type PrimitiveType =
   | "circle"
   | "ico-sphere"
   | "uv-sphere"
-  | "monkey" // Suzanne — Blender's classic test mesh
   | "grid"
   | "tetrahedron"
   | "octahedron"
@@ -344,10 +343,14 @@ export function generatePrimitiveMesh(type: PrimitiveType): MeshData {
         { x: -1, y: -1, z: -1 }, { x: 1, y: -1, z: -1 }, { x: 1, y: 1, z: -1 }, { x: -1, y: 1, z: -1 },
         { x: -1, y: -1, z: 1 }, { x: 1, y: -1, z: 1 }, { x: 1, y: 1, z: 1 }, { x: -1, y: 1, z: 1 },
       ];
+      // Outward-facing winding (counter-clockwise when viewed from outside)
       const f: Face[] = [
-        { indices: [0, 1, 2, 3], materialIndex: 0 }, { indices: [4, 7, 6, 5], materialIndex: 0 },
-        { indices: [0, 4, 5, 1], materialIndex: 0 }, { indices: [1, 5, 6, 2], materialIndex: 0 },
-        { indices: [2, 6, 7, 3], materialIndex: 0 }, { indices: [3, 7, 4, 0], materialIndex: 0 },
+        { indices: [0, 3, 2, 1], materialIndex: 0 }, // back (-Z), normal points -Z
+        { indices: [4, 5, 6, 7], materialIndex: 0 }, // front (+Z), normal points +Z
+        { indices: [0, 1, 5, 4], materialIndex: 0 }, // bottom (-Y), normal points -Y
+        { indices: [3, 7, 6, 2], materialIndex: 0 }, // top (+Y), normal points +Y
+        { indices: [0, 4, 7, 3], materialIndex: 0 }, // left (-X), normal points -X
+        { indices: [1, 2, 6, 5], materialIndex: 0 }, // right (+X), normal points +X
       ];
       return { vertices: v, edges: [], faces: f };
     }
@@ -524,48 +527,6 @@ export function generatePrimitiveMesh(type: PrimitiveType): MeshData {
     case "dodecahedron": {
       // Use icosphere as fallback for stability
       return generatePrimitiveMesh("ico-sphere");
-    }
-    case "monkey": {
-      const v: Vertex[] = [];
-      const f: Face[] = [];
-      const segs = 16, rings = 12;
-      for (let y = 0; y <= rings; y++) {
-        const vr = (y / rings) * Math.PI;
-        for (let x = 0; x <= segs; x++) {
-          const u = (x / segs) * Math.PI * 2;
-          v.push({
-            x: Math.cos(u) * Math.sin(vr) * 1.3,
-            y: Math.cos(vr) * 1.1,
-            z: Math.sin(u) * Math.sin(vr) * 1.3,
-          });
-        }
-      }
-      for (let y = 0; y < rings; y++) for (let x = 0; x < segs; x++) {
-        const a = y * (segs + 1) + x;
-        const b = a + segs + 1;
-        f.push({ indices: [a, b, a + 1, b + 1], materialIndex: 0 });
-      }
-      const eyeOff = 0.5, eyeY = 0.2, eyeZ = 1.1;
-      for (const sign of [-1, 1]) {
-        const base = v.length;
-        for (let y = 0; y <= 8; y++) {
-          const vr = (y / 8) * Math.PI;
-          for (let x = 0; x <= 12; x++) {
-            const u = (x / 12) * Math.PI * 2;
-            v.push({
-              x: Math.cos(u) * Math.sin(vr) * 0.25 + sign * eyeOff,
-              y: Math.cos(vr) * 0.25 + eyeY,
-              z: Math.sin(u) * Math.sin(vr) * 0.25 + eyeZ,
-            });
-          }
-        }
-        for (let y = 0; y < 8; y++) for (let x = 0; x < 12; x++) {
-          const a = base + y * 13 + x;
-          const b = a + 13;
-          f.push({ indices: [a, b, a + 1, b + 1], materialIndex: 0 });
-        }
-      }
-      return { vertices: v, edges: [], faces: f };
     }
     default:
       return generatePrimitiveMesh("cube");

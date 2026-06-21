@@ -10,6 +10,8 @@ import { useState, useRef, useEffect } from "react";
 import { useStore, defaultMaterial, generatePrimitiveMesh, uid, PrimitiveType, LightType } from "@/lib/kandler/store";
 import * as meshOps from "@/lib/kandler/mesh-ops";
 import { asset } from "@/lib/kandler/asset";
+import { Icon } from "@/components/kandler/Icon";
+import { ShortcutsModal } from "@/components/kandler/ShortcutsModal";
 
 type MenuDef = {
   label: string;
@@ -190,7 +192,23 @@ function Menu({ menu, onClose }: { menu: MenuDef; onClose: () => void }) {
 
 export default function TopMenuBar() {
   const [open, setOpen] = useState<string | null>(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  // Global shortcut to open the shortcuts modal
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "?" || (e.key === "/" && e.shiftKey)) {
+        const t = e.target as HTMLElement;
+        if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+        e.preventDefault();
+        setShowShortcuts(true);
+      }
+      if (e.key === "Escape") setShowShortcuts(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -238,7 +256,7 @@ export default function TopMenuBar() {
         { label: "Grid", action: () => addPrimitive("grid") },
         { label: "Tetrahedron", action: () => addPrimitive("tetrahedron") },
         { label: "Octahedron", action: () => addPrimitive("octahedron") },
-        { label: "Suzanne (Monkey)", action: () => addPrimitive("monkey") },
+        { label: "Dodecahedron", action: () => addPrimitive("dodecahedron") },
         { divider: true, label: "" },
         { label: "— Light —", divider: true } as any,
         { label: "Point Light", action: () => addLight("point") },
@@ -437,7 +455,7 @@ export default function TopMenuBar() {
       label: "Help",
       items: [
         { label: "About Kandler", action: () => useStore.getState().showToast("Kandler v1.0 — Three.js 3D Suite by Kantasu", "info") },
-        { label: "Keyboard Shortcuts", action: () => useStore.getState().showToast("See Help → Shortcuts panel (coming soon)", "info") },
+        { label: "Keyboard Shortcuts", shortcut: "?", action: () => setShowShortcuts(true) },
         { divider: true, label: "" },
         { label: "Made by Kantasu", action: () => useStore.getState().showToast("Crafted with care by Kantasu — 2026", "info") },
       ],
@@ -474,24 +492,26 @@ export default function TopMenuBar() {
       <button
         onClick={() => useStore.getState().undo()}
         title="Undo (Ctrl+Z)"
-        className="px-2 h-7 rounded text-[12px] text-white/80 hover:bg-white/10"
+        className="px-2 h-7 rounded text-white/80 hover:bg-white/10 flex items-center"
       >
-        ↶
+        <Icon name="undo" size={14} />
       </button>
       <button
         onClick={() => useStore.getState().redo()}
         title="Redo (Ctrl+Y)"
-        className="px-2 h-7 rounded text-[12px] text-white/80 hover:bg-white/10"
+        className="px-2 h-7 rounded text-white/80 hover:bg-white/10 flex items-center"
       >
-        ↷
+        <Icon name="redo" size={14} />
       </button>
       <button
         onClick={saveScene}
         title="Save (Ctrl+S)"
-        className="px-3 h-7 rounded text-[12px] bg-[#e08a3c] text-black font-medium hover:brightness-110"
+        className="px-3 h-7 rounded text-[12px] bg-[#e08a3c] text-black font-medium hover:brightness-110 flex items-center gap-1.5"
       >
-        Save
+        <Icon name="save" size={12} /> Save
       </button>
+
+      {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
     </div>
   );
 }

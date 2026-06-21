@@ -3,26 +3,28 @@
  * Kandler — Properties Panel (right side)
  * Tabbed panel mirroring Blender's Properties editor:
  * Render · Output · Scene · World · Object · Modifiers · Mesh · Material · Light · Camera
+ * Uses custom SVG icons (no emojis).
  *
  * Made by Kantasu.
  */
 import { useState } from "react";
 import { useStore, defaultMaterial, uid, ModifierType, Modifier } from "@/lib/kandler/store";
 import { subdivideMesh, extrudeFaces, insetFaces, deleteFaces, deleteVertices, mergeVertices, triangulateFaces, flipNormals } from "@/lib/kandler/mesh-ops";
+import { Icon, IconName } from "@/components/kandler/Icon";
 
 type Tab = "render" | "output" | "scene" | "world" | "object" | "modifiers" | "mesh" | "material" | "light" | "camera";
 
-const TABS: { id: Tab; icon: string; label: string }[] = [
-  { id: "render", icon: "🎬", label: "Render" },
-  { id: "output", icon: "🖼", label: "Output" },
-  { id: "scene", icon: "🌐", label: "Scene" },
-  { id: "world", icon: "🌍", label: "World" },
-  { id: "object", icon: "▣", label: "Object" },
-  { id: "modifiers", icon: "🔧", label: "Modifiers" },
-  { id: "mesh", icon: "▦", label: "Mesh" },
-  { id: "material", icon: "🎨", label: "Material" },
-  { id: "light", icon: "💡", label: "Light" },
-  { id: "camera", icon: "📷", label: "Camera" },
+const TABS: { id: Tab; icon: IconName; label: string }[] = [
+  { id: "render", icon: "tab-render", label: "Render" },
+  { id: "output", icon: "tab-output", label: "Output" },
+  { id: "scene", icon: "tab-scene", label: "Scene" },
+  { id: "world", icon: "tab-world", label: "World" },
+  { id: "object", icon: "tab-object", label: "Object" },
+  { id: "modifiers", icon: "tab-modifiers", label: "Modifiers" },
+  { id: "mesh", icon: "tab-mesh", label: "Mesh" },
+  { id: "material", icon: "tab-material", label: "Material" },
+  { id: "light", icon: "tab-light", label: "Light" },
+  { id: "camera", icon: "tab-camera", label: "Camera" },
 ];
 
 export default function PropertiesPanel() {
@@ -40,9 +42,9 @@ export default function PropertiesPanel() {
             key={t.id}
             onClick={() => setTab(t.id)}
             title={t.label}
-            className={`px-2.5 py-2 text-[14px] hover:bg-white/5 flex-shrink-0 ${tab === t.id ? "bg-white/10 text-[#e08a3c]" : "text-white/60"}`}
+            className={`px-2.5 py-2 hover:bg-white/5 flex-shrink-0 flex items-center justify-center ${tab === t.id ? "bg-white/10 text-[#e08a3c]" : "text-white/60"}`}
           >
-            {t.icon}
+            <Icon name={t.icon} size={16} />
           </button>
         ))}
       </div>
@@ -147,7 +149,7 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
         className="kandler-section-title w-full text-left flex items-center justify-between"
       >
         <span>{title}</span>
-        <span className="text-[10px]">{open ? "▼" : "▶"}</span>
+        <span className="text-[10px]"><Icon name={open ? "chevron-down" : "chevron-right"} size={10} /></span>
       </button>
       {open && <div className="px-2 py-1">{children}</div>}
     </div>
@@ -534,21 +536,21 @@ function CameraTab({ obj }: { obj: any }) {
 }
 
 // ---------- Modifiers Tab ----------
-const MODIFIER_TYPES: { type: ModifierType; label: string; icon: string }[] = [
-  { type: "subdivision", label: "Subdivision Surface", icon: "▦" },
-  { type: "mirror", label: "Mirror", icon: "▤" },
-  { type: "array", label: "Array", icon: "▦▦" },
-  { type: "solidify", label: "Solidify", icon: "◼" },
-  { type: "bevel", label: "Bevel", icon: "◢" },
-  { type: "boolean", label: "Boolean", icon: "∪" },
-  { type: "decimate", label: "Decimate", icon: "↓" },
-  { type: "wireframe", label: "Wireframe", icon: "∿" },
-  { type: "screw", label: "Screw", icon: "↻" },
-  { type: "simple-deform", label: "Simple Deform", icon: "↺" },
-  { type: "displace", label: "Displace", icon: "△" },
-  { type: "wave", label: "Wave", icon: "〜" },
-  { type: "build", label: "Build", icon: "⏳" },
-  { type: "remesh", label: "Remesh", icon: "▦" },
+const MODIFIER_TYPES: { type: ModifierType; label: string }[] = [
+  { type: "subdivision", label: "Subdivision Surface" },
+  { type: "mirror", label: "Mirror" },
+  { type: "array", label: "Array" },
+  { type: "solidify", label: "Solidify" },
+  { type: "bevel", label: "Bevel" },
+  { type: "boolean", label: "Boolean" },
+  { type: "decimate", label: "Decimate" },
+  { type: "wireframe", label: "Wireframe" },
+  { type: "screw", label: "Screw" },
+  { type: "simple-deform", label: "Simple Deform" },
+  { type: "displace", label: "Displace" },
+  { type: "wave", label: "Wave" },
+  { type: "build", label: "Build" },
+  { type: "remesh", label: "Remesh" },
 ];
 
 function ModifiersTab({ obj }: { obj: any }) {
@@ -569,7 +571,7 @@ function ModifiersTab({ obj }: { obj: any }) {
       case "wireframe": return { thickness: 0.05 };
       case "boolean": return { operation: "union", target: "" };
       case "screw": return { angle: 360, steps: 16, iterations: 1 };
-      case "simple-deform": return { mode: "bend", angle: 45 };
+      case "simple-deform": return { mode: "bend", angle: 45, axis: "z" };
       case "displace": return { strength: 1, texture: "noise" };
       case "wave": return { amplitude: 0.5, frequency: 1, phase: 0 };
       case "build": return { start: 0, length: 1 };
@@ -624,16 +626,16 @@ function ModifiersTab({ obj }: { obj: any }) {
               <button
                 className="text-[10px] text-white/60"
                 onClick={() => updateMod(obj.id, mod.id, { expanded: !mod.expanded })}
-              >{mod.expanded ? "▼" : "▶"}</button>
+              >{mod.expanded ? <Icon name="chevron-down" size={10} /> : <Icon name="chevron-right" size={10} />}</button>
               <input
                 type="checkbox"
                 checked={mod.enabled}
                 onChange={e => updateMod(obj.id, mod.id, { enabled: e.target.checked })}
               />
               <span className="text-[11px] text-white/85 flex-1">{mod.name}</span>
-              <button onClick={() => moveMod(obj.id, mod.id, -1)} className="text-[10px] text-white/50 hover:text-white px-1">↑</button>
-              <button onClick={() => moveMod(obj.id, mod.id, 1)} className="text-[10px] text-white/50 hover:text-white px-1">↓</button>
-              <button onClick={() => removeMod(obj.id, mod.id)} className="text-[10px] text-white/50 hover:text-red-400 px-1">✕</button>
+              <button onClick={() => moveMod(obj.id, mod.id, -1)} title="Move up" className="text-white/50 hover:text-white px-1 rotate-[-90deg]"><Icon name="chevron-down" size={12} /></button>
+              <button onClick={() => moveMod(obj.id, mod.id, 1)} title="Move down" className="text-white/50 hover:text-white px-1 rotate-[90deg]"><Icon name="chevron-down" size={12} /></button>
+              <button onClick={() => removeMod(obj.id, mod.id)} title="Remove" className="text-white/50 hover:text-red-400 px-1"><Icon name="x" size={12} /></button>
             </div>
             {mod.expanded && (
               <div className="p-2">
@@ -712,7 +714,7 @@ function RenderTab() {
             useStore.getState().showToast("Render saved", "success");
           }}
         >
-          📸 Render Image (F12)
+          <span className="flex items-center gap-2 justify-center"><Icon name="render-image" size={14} /> Render Image (F12)</span>
         </button>
       </Section>
     </div>

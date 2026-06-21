@@ -2,11 +2,13 @@
 /**
  * Kandler — Timeline Panel (bottom)
  * Frame scrubber, playback controls, keyframe markers, frame range editor.
+ * Uses custom SVG icons (no emojis).
  *
  * Made by Kantasu.
  */
 import { useEffect, useRef } from "react";
 import { useStore } from "@/lib/kandler/store";
+import { Icon } from "@/components/kandler/Icon";
 
 export default function Timeline() {
   const project = useStore(s => s.project);
@@ -128,27 +130,27 @@ export default function Timeline() {
           className="kandler-tool-btn"
           onClick={() => setCurrentFrame(project.frameStart)}
           title="Go to start"
-        >⏮</button>
+        ><Icon name="skip-back" size={16} /></button>
         <button
           className="kandler-tool-btn"
           onClick={() => setCurrentFrame(project.currentFrame - 1)}
           title="Previous frame"
-        >◀</button>
+        ><Icon name="step-back" size={16} /></button>
         <button
           className={`kandler-tool-btn ${project.playing ? "active" : ""}`}
           onClick={() => setPlaying(!project.playing)}
           title={project.playing ? "Pause" : "Play"}
-        >{project.playing ? "⏸" : "▶"}</button>
+        >{project.playing ? <Icon name="pause" size={16} /> : <Icon name="play" size={16} />}</button>
         <button
           className="kandler-tool-btn"
           onClick={() => setCurrentFrame(project.currentFrame + 1)}
           title="Next frame"
-        >▶</button>
+        ><Icon name="step-forward" size={16} /></button>
         <button
           className="kandler-tool-btn"
           onClick={() => setCurrentFrame(project.frameEnd)}
           title="Go to end"
-        >⏭</button>
+        ><Icon name="skip-forward" size={16} /></button>
         <div className="flex-1" />
         <span className="text-[11px] font-mono">
           Frame: <span className="text-[#e08a3c] font-semibold">{project.currentFrame}</span> / {project.frameEnd}
