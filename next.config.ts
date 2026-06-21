@@ -25,6 +25,13 @@ const nextConfig: NextConfig = {
   reactStrictMode: false,
   // Allow dev server from preview subdomains
   allowedDevOrigins: ["*.space-z.ai"],
+  // Expose basePath to client code via NEXT_PUBLIC_BASE_PATH so components
+  // can prefix asset URLs (icon.png, manifest.json, etc.) at render time
+  // without depending on window.__KANDLER_BASE__ (which causes SSR/hydration
+  // mismatches and breaks on the GitHub Pages deploy).
+  env: {
+    NEXT_PUBLIC_BASE_PATH: basePath,
+  },
 };
 
 export default nextConfig;

@@ -4,9 +4,10 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
 // basePath is "/Kandler" in production (GitHub Pages) and "" in dev.
-// Next.js auto-prefixes metadata.icons / metadata.manifest, but for inline
-// <head> links and the SW registration script we need it explicitly.
-const BASE = process.env.NODE_ENV === "production" ? "/Kandler" : "";
+// Sourced from NEXT_PUBLIC_BASE_PATH (set in next.config.ts) so the same
+// value is inlined into both server-rendered HTML and client bundles —
+// no hydration mismatch, no runtime window lookups.
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || (process.env.NODE_ENV === "production" ? "/Kandler" : "");
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
