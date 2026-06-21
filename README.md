@@ -5,36 +5,61 @@
 
 ![Kandler](public/icon.png)
 
-## Install & Run Locally
+Live at: **https://ddown325.github.io/Kandler/**
 
-### Option 1 — Install as a PWA (recommended for end users)
+## Install & Run
 
-Kandler is a Progressive Web App. You can install it directly from your browser:
+### A. Use the hosted version (GitHub Pages)
 
-1. Open Kandler in **Chrome / Edge / Brave / Safari 17+**.
-2. Click the **Install** icon in the address bar (or use the menu → *Install Kandler*).
-3. After install, Kandler launches from your desktop / app drawer — full offline support, no browser chrome.
+1. Visit **https://ddown325.github.io/Kandler/**
+2. (Optional) Install as a PWA:
+   - **Chrome/Edge/Brave desktop**: click the install icon in the address bar, or use the in-app **Install** button.
+   - **iOS Safari**: Share → *Add to Home Screen*.
+   - **Android Chrome**: menu → *Install app*.
+3. After install, Kandler runs offline from your app drawer / home screen.
 
-> On **iOS Safari**: tap the Share button → *Add to Home Screen*.
-> On **Android Chrome**: menu → *Install app*.
+### B. Deploy to your own GitHub Pages (one-time setup)
 
-### Option 2 — Run from source (developers)
+The repo ships with a GitHub Actions workflow at `.github/workflows/deploy.yml` that auto-builds and deploys on every push to `main`.
+
+1. **Push this repo to GitHub** (repo name must be `Kandler` so the basePath matches):
+   ```bash
+   git init
+   git add .
+   git commit -m "Initial Kandler commit"
+   git branch -M main
+   git remote add origin https://github.com/ddown325/Kandler.git
+   git push -u origin main
+   ```
+
+2. **Enable GitHub Pages via Actions** (repo → Settings → Pages → Source → *GitHub Actions*).
+
+3. Wait ~2 minutes for the workflow to finish — your site goes live at `https://ddown325.github.io/Kandler/`.
+
+> If you rename the repo, update `basePath` in `next.config.ts` (and `BASE` in `src/app/layout.tsx`) to match the new repo name.
+
+### C. Run locally (developers)
 
 ```bash
-# 1. Install dependencies
-bun install        # or: npm install / pnpm install
-
-# 2. Start the dev server
-bun run dev        # or: npm run dev
-
-# 3. Open http://localhost:3000
-
-# 4. Build for production
-bun run build
-bun run start
+bun install              # or: npm install / pnpm install
+bun run dev              # starts dev server on http://localhost:3000
 ```
 
-**Requirements**: Node.js 18+, modern browser with WebGL 2.
+### D. Build a production static export locally
+
+```bash
+NODE_ENV=production bun run next build
+# Output goes to ./out/
+# To preview:  npx serve out  (or any static file server)
+```
+
+To test the production build with the `/Kandler/` base path (simulating GitHub Pages):
+
+```bash
+mkdir -p /tmp/test && cp -r out /tmp/test/Kandler
+cd /tmp/test && python3 -m http.server 3001
+# Visit http://localhost:3001/Kandler/
+```
 
 ## Capabilities
 
@@ -44,12 +69,12 @@ Kandler ships with a comprehensive feature set mirroring Blender's core workflow
 - **15 primitive types**: Cube, UV Sphere, Ico Sphere, Cylinder, Cone, Torus, Torus Knot, Plane, Circle, Grid, Tetrahedron, Octahedron, Dodecahedron, Suzanne (Monkey)
 - **Edit mode** with vertex/edge/face selection
 - **Mesh operations**: Extrude, Inset, Subdivide, Bevel, Merge, Fill, Loop Cut, Knife, Delete components, Triangulate, Flip Normals, Recalculate Normals
-- **Modifier stack**: Subdivision Surface, Mirror, Array, Solidify, Bevel, Boolean, Decimate, Wireframe, Screw, Simple Deform, Displace, Wave, Build, Remesh — with reordering, enable/disable, per-modifier params
+- **Modifier stack**: Subdivision, Mirror, Array, Solidify, Bevel, Boolean, Decimate, Wireframe, Screw, Simple Deform, Displace, Wave, Build, Remesh — with reordering, enable/disable, per-modifier params
 
 ### Materials (PBR)
 - **Physical-based rendering**: base color, metallic, roughness, emissive + intensity, opacity, transmission, IOR, thickness, clearcoat
 - **Procedural textures**: Checker, Noise, Brick, Gradient
-- **Display options**: wireframe, flat/ smooth shading, double-sided
+- **Display options**: wireframe, flat/smooth shading, double-sided
 - Multiple material slots per object
 
 ### Lighting
@@ -71,7 +96,8 @@ Kandler ships with a comprehensive feature set mirroring Blender's core workflow
 - Orbit / pan / zoom (mouse + numpad presets: Top / Front / Side / Camera / Free)
 - 4 shading modes: Wireframe, Solid, Material, Rendered
 - Grid + axis helpers, frame-all, frame-selected
-- Transform gizmos (move / rotate / scale) with axis-locking
+- **Transform gizmos** with axis-locked dragging via camera-parallel-plane raycasting
+- **Direct drag-to-move** — click an object with the Move/Rotate/Scale tool and drag
 
 ### Animation
 - Timeline with scrubbing, playback controls, FPS / frame-range editor
@@ -87,14 +113,13 @@ Kandler ships with a comprehensive feature set mirroring Blender's core workflow
 ### File I/O
 - Save / Load scenes as `.kandler.json`
 - Export rendered images as PNG
-- GLTF / OBJ export hooks
 
 ### Keyboard Shortcuts (Blender-style)
 | Key | Action |
 |-----|--------|
 | `Tab` | Toggle Object / Edit mode |
 | `A` / `Shift+A` | Select all / none |
-| `G` / `R` / `S` | Move / Rotate / Scale |
+| `G` / `R` / `S` | Move / Rotate / Scale (then click+drag the object) |
 | `E` | Extrude (edit mode) |
 | `I` | Inset (edit mode) |
 | `W` | Subdivide (edit mode) |
@@ -117,12 +142,13 @@ Kandler ships with a comprehensive feature set mirroring Blender's core workflow
 ```
 src/
 ├── app/
-│   ├── layout.tsx              # PWA manifest, SW registration, branding
+│   ├── layout.tsx              # PWA manifest, SW registration, basePath-aware icons
 │   ├── page.tsx                # Main Kandler layout
 │   └── globals.css             # Blender-dark theme
 ├── lib/kandler/
 │   ├── store.ts                # Zustand store: scene, selection, modes, history
-│   ├── viewport.ts             # Three.js engine: render, sync, picking, orbit
+│   ├── viewport.ts             # Three.js engine: render, sync, picking, orbit, raycast helpers
+│   ├── viewport-registry.ts    # Module singleton for active viewport
 │   └── mesh-ops.ts             # Edit-mode mesh operations
 ├── components/kandler/
 │   ├── menus/TopMenuBar.tsx
@@ -135,11 +161,22 @@ src/
 │   ├── StatusBar.tsx
 │   ├── ToastNotifier.tsx
 │   └── ResizablePanel.tsx
-└── public/
-    ├── manifest.json           # PWA manifest
-    ├── sw.js                   # Service worker (offline cache)
-    └── icon.png                # Kandler icon (by Kantasu)
+├── public/
+│   ├── manifest.json           # PWA manifest (relative URLs)
+│   ├── sw.js                   # Service worker (offline cache)
+│   ├── icon.png                # Kandler icon (by Kantasu)
+│   ├── favicon.png
+│   └── .nojekyll               # Disables Jekyll so _next/ works on Pages
+└── .github/workflows/deploy.yml  # Auto-deploy to GitHub Pages
 ```
+
+## GitHub Pages notes
+
+- **basePath**: `next.config.ts` sets `basePath: "/Kandler"` and `assetPrefix: "/Kandler/"` in production (only). In dev, both are empty so the dev server works as usual.
+- **Static export**: `output: "export"` generates a fully static site into `./out/`.
+- **No Jekyll**: `public/.nojekyll` ensures GitHub Pages serves the `_next/` directory.
+- **PWA**: `manifest.json` and `sw.js` use relative URLs (`./icon.png`, etc.) so they work under any base path.
+- **Auto-deploy**: push to `main` triggers `.github/workflows/deploy.yml` which builds and deploys to Pages.
 
 ## Tech Stack
 - **Next.js 16** + **TypeScript 5**

@@ -3,6 +3,11 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
+// basePath is "/Kandler" in production (GitHub Pages) and "" in dev.
+// Next.js auto-prefixes metadata.icons / metadata.manifest, but for inline
+// <head> links and the SW registration script we need it explicitly.
+const BASE = process.env.NODE_ENV === "production" ? "/Kandler" : "";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -18,15 +23,15 @@ export const metadata: Metadata = {
   description: "Kandler is a Three.js-powered 3D modeling suite with Blender-class capabilities. Modeled, sculpted, animated, rendered — in the browser. Installable to your device. Made by Kantasu.",
   keywords: ["Kandler", "Kantasu", "3D", "Blender", "Three.js", "WebGL", "Modeling", "Sculpting", "Animation", "PBR"],
   authors: [{ name: "Kantasu" }],
-  manifest: "/manifest.json",
+  manifest: `${BASE}/manifest.json`,
   icons: {
     icon: [
-      { url: "/favicon.png", sizes: "32x32", type: "image/png" },
-      { url: "/icon.png", sizes: "192x192", type: "image/png" },
-      { url: "/icon.png", sizes: "512x512", type: "image/png" },
+      { url: `${BASE}/favicon.png`, sizes: "32x32", type: "image/png" },
+      { url: `${BASE}/icon.png`, sizes: "192x192", type: "image/png" },
+      { url: `${BASE}/icon.png`, sizes: "512x512", type: "image/png" },
     ],
-    apple: [{ url: "/icon.png", sizes: "512x512", type: "image/png" }],
-    shortcut: ["/favicon.png"],
+    apple: [{ url: `${BASE}/icon.png`, sizes: "512x512", type: "image/png" }],
+    shortcut: [`${BASE}/favicon.png`],
   },
   appleWebApp: {
     capable: true,
@@ -39,14 +44,15 @@ export const metadata: Metadata = {
     description: "A Three.js-powered 3D modeling suite with Blender-class capabilities. Made by Kantasu.",
     siteName: "Kandler",
     type: "website",
-    images: [{ url: "/icon.png", width: 1280, height: 1280 }],
+    images: [{ url: `${BASE}/icon.png`, width: 1280, height: 1280 }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Kandler — 3D Modeling Suite",
     description: "Blender-class 3D modeling in the browser. Made by Kantasu.",
-    images: ["/icon.png"],
+    images: [`${BASE}/icon.png`],
   },
+  metadataBase: BASE ? new URL(`https://ddown325.github.io${BASE}`) : new URL("http://localhost:3000"),
 };
 
 export const viewport: Viewport = {
@@ -65,9 +71,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/favicon.png" type="image/png" />
-        <link rel="apple-touch-icon" href="/icon.png" />
-        <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="mobile-web-app-capable" content="yes" />
@@ -80,16 +83,20 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                  navigator.serviceWorker.register('/sw.js').catch(() => {});
+              (function() {
+                var BASE = ${JSON.stringify(BASE)};
+                window.__KANDLER_BASE__ = BASE;
+                if ('serviceWorker' in navigator) {
+                  window.addEventListener('load', function() {
+                    navigator.serviceWorker.register(BASE + '/sw.js', { scope: BASE + '/' }).catch(function() {});
+                  });
+                }
+                window.addEventListener('beforeinstallprompt', function(e) {
+                  e.preventDefault();
+                  window.__kandlerInstallPrompt = e;
+                  window.dispatchEvent(new CustomEvent('kandler-installable'));
                 });
-              }
-              window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault();
-                window.__kandlerInstallPrompt = e;
-                window.dispatchEvent(new CustomEvent('kandler-installable'));
-              });
+              })();
             `,
           }}
         />

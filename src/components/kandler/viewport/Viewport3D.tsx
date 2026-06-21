@@ -9,8 +9,10 @@
  * Made by Kantasu.
  */
 import { useEffect, useRef } from "react";
+import * as THREE from "three";
 import { useStore, defaultMaterial, generatePrimitiveMesh, uid, PrimitiveType, LightType } from "@/lib/kandler/store";
 import { createViewport, ViewportHandle } from "@/lib/kandler/viewport";
+import { registerViewport, unregisterViewport } from "@/lib/kandler/viewport-registry";
 import { extrudeFaces, insetFaces, deleteFaces, deleteVertices, subdivideMesh as subdivideOp, mergeVertices, moveSelectedVertices, fillFaces } from "@/lib/kandler/mesh-ops";
 
 export default function Viewport3D() {
@@ -40,6 +42,7 @@ export default function Viewport3D() {
     if (!containerRef.current) return;
     const vp = createViewport(containerRef.current);
     vpRef.current = vp;
+    registerViewport(vp);
     // Trigger initial sizing
     const ro = new ResizeObserver(() => {
       if (containerRef.current && vp) {
@@ -49,6 +52,7 @@ export default function Viewport3D() {
     ro.observe(containerRef.current);
     return () => {
       ro.disconnect();
+      unregisterViewport(vp);
       vp.dispose();
       vpRef.current = null;
     };
@@ -241,18 +245,93 @@ export default function Viewport3D() {
       ref={containerRef}
       className="relative w-full h-full bg-[#1a1d23] kandler-ui"
       onMouseDown={(e) => {
-        if (e.button === 0) {
-          // could be pick or drag — track movement
-          const startX = e.clientX, startY = e.clientY;
-          const onUp = (ev: MouseEvent) => {
-            window.removeEventListener("mouseup", onUp);
-            if (Math.abs(ev.clientX - startX) < 4 && Math.abs(ev.clientY - startY) < 4) {
-              if (activeTool === "cursor") handlePlaceCursor({ clientX: ev.clientX, clientY: ev.clientY } as any);
-              else handlePick({ clientX: ev.clientX, clientY: ev.clientY } as any);
+        if (e.button !== 0) return;
+        const startX = e.clientX, startY = e.clientY;
+        // First, attempt to pick the object under the cursor.
+        // If a transform tool is active AND the user hits an already-selected
+        // object, we initiate a direct drag on the camera-parallel plane.
+        const vp = vpRef.current;
+        const s = useStore.getState();
+        let pickedId: string | null = null;
+        if (vp) pickedId = vp.pickObject(e.clientX, e.clientY);
+
+        const isTransformTool = ["move", "rotate", "scale"].includes(s.activeTool);
+        const canDirectDrag = isTransformTool && pickedId && s.selection.objects.includes(pickedId) && !e.shiftKey;
+
+        if (canDirectDrag && vp) {
+          // Begin a free drag on the camera-parallel plane through the object origin
+          const obj = s.objects[pickedId!];
+          if (!obj) return;
+          const origin = new THREE.Vector3(obj.position[0], obj.position[1], obj.position[2]);
+          const camForward = vp.getCameraForward();
+          const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(camForward, origin);
+          const ray = vp.getRaycaster(e.clientX, e.clientY);
+          const startHit = new THREE.Vector3();
+          const hitOk = ray.ray.intersectPlane(plane, startHit);
+          const startPos: [number, number, number] = [...obj.position] as any;
+          const startRot: [number, number, number] = [...obj.rotation] as any;
+          const startScale: [number, number, number] = [...obj.scale] as any;
+
+          let moved = false;
+          const onMove = (ev: MouseEvent) => {
+            const dx = ev.clientX - startX;
+            const dy = ev.clientY - startY;
+            if (!moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+            moved = true;
+            const st = useStore.getState();
+            const cur = st.objects[pickedId!];
+            if (!cur) return;
+            if (st.activeTool === "move") {
+              const r = vp.getRaycaster(ev.clientX, ev.clientY);
+              const newHit = new THREE.Vector3();
+              if (r.ray.intersectPlane(plane, newHit) && hitOk) {
+                const delta = new THREE.Vector3().subVectors(newHit, startHit);
+                st.setObjectTransform(pickedId!, [
+                  startPos[0] + delta.x,
+                  startPos[1] + delta.y,
+                  startPos[2] + delta.z,
+                ]);
+              }
+            } else if (st.activeTool === "rotate") {
+              const newRot: [number, number, number] = [...startRot];
+              newRot[2] += dx * 0.01;
+              st.setObjectTransform(pickedId!, undefined, newRot);
+            } else if (st.activeTool === "scale") {
+              const factor = 1 + dx * 0.01;
+              const newScale: [number, number, number] = [
+                startScale[0] * factor,
+                startScale[1] * factor,
+                startScale[2] * factor,
+              ];
+              st.setObjectTransform(pickedId!, undefined, undefined, newScale);
             }
           };
+          const onUp = () => {
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+            if (!moved) {
+              // Treat as a click — just select the picked object
+              if (pickedId) useStore.getState().selectObject(pickedId, false);
+            } else {
+              useStore.getState().pushHistory(`Direct ${useStore.getState().activeTool}`);
+            }
+          };
+          window.addEventListener("mousemove", onMove);
           window.addEventListener("mouseup", onUp);
+          // Also select the picked object immediately
+          if (pickedId) useStore.getState().selectObject(pickedId, false);
+          return;
         }
+
+        // Default: track click vs drag for picking / cursor placement
+        const onUp = (ev: MouseEvent) => {
+          window.removeEventListener("mouseup", onUp);
+          if (Math.abs(ev.clientX - startX) < 4 && Math.abs(ev.clientY - startY) < 4) {
+            if (activeTool === "cursor") handlePlaceCursor({ clientX: ev.clientX, clientY: ev.clientY } as any);
+            else handlePick({ clientX: ev.clientX, clientY: ev.clientY } as any);
+          }
+        };
+        window.addEventListener("mouseup", onUp);
       }}
     >
       {/* Viewport HUD - top right */}

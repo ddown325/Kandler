@@ -37,7 +37,7 @@ export default function ToastNotifier() {
     <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none">
       {showInstall && (
         <div className="pointer-events-auto bg-[#1f2228] border border-[#e08a3c]/40 rounded-lg shadow-2xl px-4 py-3 flex items-center gap-3">
-          <img src="/icon.png" alt="Kandler" className="w-7 h-7 rounded" />
+          <img src={`${typeof window !== "undefined" ? (window as any).__KANDLER_BASE__ || "" : ""}/icon.png`} alt="Kandler" className="w-7 h-7 rounded" />
           <div className="text-[12px] text-white/85">
             <div className="font-semibold">Install Kandler to your device</div>
             <div className="text-white/50 text-[11px]">Run locally — full offline support</div>

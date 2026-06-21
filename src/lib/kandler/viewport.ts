@@ -23,6 +23,11 @@ export interface ViewportHandle {
   focusSelected: () => void;
   frameAll: () => void;
   setActiveCamera: (id: string | null) => void;
+  // Transform helpers
+  worldToScreen: (p: THREE.Vector3) => { x: number; y: number; visible: boolean };
+  getRaycaster: (x: number, y: number) => THREE.Raycaster;
+  getCameraForward: () => THREE.Vector3;
+  getCanvasRect: () => DOMRect | null;
 }
 
 export type ViewportMode = "free" | "top" | "front" | "side" | "camera";
@@ -885,6 +890,38 @@ export function createViewport(container: HTMLElement): ViewportHandle {
     }
   }
 
+  // ----- Transform helpers (used by TransformGizmo) -----
+  function worldToScreen(p: THREE.Vector3): { x: number; y: number; visible: boolean } {
+    const rect = renderer.domElement.getBoundingClientRect();
+    const v = p.clone().project(camera);
+    return {
+      x: rect.left + (v.x * 0.5 + 0.5) * rect.width,
+      y: rect.top + (-v.y * 0.5 + 0.5) * rect.height,
+      visible: v.z < 1 && v.z > -1,
+    };
+  }
+
+  function getRaycaster(x: number, y: number): THREE.Raycaster {
+    const rect = renderer.domElement.getBoundingClientRect();
+    const ndc2 = new THREE.Vector2(
+      ((x - rect.left) / rect.width) * 2 - 1,
+      -((y - rect.top) / rect.height) * 2 + 1
+    );
+    const rc = new THREE.Raycaster();
+    rc.setFromCamera(ndc2, camera);
+    return rc;
+  }
+
+  function getCameraForward(): THREE.Vector3 {
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    return dir;
+  }
+
+  function getCanvasRect(): DOMRect | null {
+    return renderer.domElement.getBoundingClientRect();
+  }
+
   return {
     scene,
     camera,
@@ -899,5 +936,9 @@ export function createViewport(container: HTMLElement): ViewportHandle {
     focusSelected,
     frameAll,
     setActiveCamera,
+    worldToScreen,
+    getRaycaster,
+    getCameraForward,
+    getCanvasRect,
   };
 }

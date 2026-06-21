@@ -447,7 +447,7 @@ export default function TopMenuBar() {
     <div ref={ref} className="h-9 bg-[#1f2228] border-b border-[#2f323a] flex items-center px-2 gap-1 kandler-ui select-none">
       {/* Brand */}
       <div className="flex items-center gap-2 pr-3 mr-1 border-r border-[#2f323a] h-full">
-        <img src="/icon.png" alt="Kandler" className="w-6 h-6 rounded-sm" />
+        <img src={`${typeof window !== "undefined" ? (window as any).__KANDLER_BASE__ || "" : ""}/icon.png`} alt="Kandler" className="w-6 h-6 rounded-sm" />
         <div className="flex flex-col leading-none">
           <span className="text-[13px] font-semibold text-white tracking-tight">Kandler</span>
           <span className="text-[9px] text-white/40">by Kantasu</span>
