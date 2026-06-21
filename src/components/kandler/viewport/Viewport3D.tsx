@@ -19,6 +19,20 @@ export default function Viewport3D() {
   const containerRef = useRef<HTMLDivElement>(null);
   const vpRef = useRef<ViewportHandle | null>(null);
 
+  // Save scene helper — used by the Ctrl+S shortcut to download a .kandler.json
+  // file (preventing the browser's native "Save Page As" dialog)
+  const saveSceneViaStore = () => {
+    const data = useStore.getState().exportScene();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${data.project.name || "kandler-scene"}.kandler.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    useStore.getState().showToast("Scene saved", "success");
+  };
+
   // Store subscriptions
   const objects = useStore(s => s.objects);
   const objectOrder = useStore(s => s.objectOrder);
@@ -93,6 +107,44 @@ export default function Viewport3D() {
       const shift = e.shiftKey;
       const ctrl = e.ctrlKey || e.metaKey;
 
+      // ---- BLOCK BROWSER DEFAULTS for any key combo Kandler uses ----
+      // Prevent browser from reloading the page, opening native dialogs,
+      // cycling tabs, opening devtools, etc. We attach this listener in
+      // the capture phase so we run BEFORE the browser's default handler.
+      const kandlerCombos: Array<[string, boolean, boolean]> = [
+        // [key, ctrl, shift]
+        ["a", false, false], ["a", false, true], ["i", false, true],
+        ["b", false, false], ["c", false, false],
+        ["tab", false, false],
+        ["g", false, false], ["r", false, false], ["r", true, true],
+        ["s", false, false], ["s", false, true], ["s", true, false],  // Ctrl+S = save scene
+        ["z", false, false], ["z", true, false], ["z", true, true],
+        ["y", true, false],
+        ["x", false, false], ["delete", false, false],
+        ["d", false, true], ["d", false, false], ["d", true, false],  // Ctrl+D = duplicate (browser bookmark)
+        ["j", true, false],  // Ctrl+J = join (browser downloads)
+        ["h", false, false], ["h", false, true], ["h", true, false],  // Ctrl+H = hide (browser history)
+        ["f", false, false], ["f", true, false],  // Ctrl+F = fill (browser find)
+        ["e", false, false],
+        ["i", false, false],
+        ["m", true, false],  // Ctrl+M = merge (browser mute tab)
+        ["w", false, false], ["w", true, false],  // Ctrl+W = subdivide (browser close tab)
+        ["n", true, false],  // Ctrl+N = toggle properties (browser new window)
+        ["o", true, false],  // Ctrl+O = open scene (browser open file)
+        ["p", true, false],  // Ctrl+P = render (browser print)
+        ["t", false, false], ["t", true, false],  // Ctrl+T = toolbar (browser new tab)
+      ];
+      const isKandlerCombo = kandlerCombos.some(([kk, cc, ss]) => k === kk && cc === ctrl && ss === shift);
+      const isNumpad = e.code.startsWith("Numpad");
+      const isFunctionKey = /^(F1|F3|F5|F7|F11|F12)$/i.test(e.key);
+      const isHome = k === "home";
+      const isSlash = k === "/" || k === "?";
+
+      if (isKandlerCombo || isNumpad || isFunctionKey || isHome || isSlash) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
       // Tool shortcuts
       if (k === "a" && !ctrl && !shift) { s.selectAll(); return; }
       if (k === "a" && !ctrl && shift) { s.deselectAll(); return; }
@@ -100,14 +152,25 @@ export default function Viewport3D() {
       if (k === "b" && !ctrl && !shift) { s.setActiveTool("box-select"); return; }
       if (k === "c" && !ctrl && !shift) { s.setActiveTool("cursor"); return; }
       if (k === "tab" && !ctrl) {
-        e.preventDefault();
         s.setEditMode(s.editMode === "edit" ? "object" : "edit");
         return;
       }
+      if (k === "t" && !ctrl && !shift) { s.togglePanel("toolbar"); return; }
       if (k === "g" && !ctrl && !shift) { s.setActiveTool("move"); s.showToast("Move tool — drag selected object(s)", "info"); return; }
       if (k === "r" && !ctrl && !shift) { s.setActiveTool("rotate"); s.showToast("Rotate tool — drag selected object(s)", "info"); return; }
+      if (k === "r" && ctrl && shift) {
+        // Clear rotation (Alt+R in Blender — we use Ctrl+Shift+R since Alt activates browser menus)
+        for (const id of s.selection.objects) s.setObjectTransform(id, undefined, [0, 0, 0]);
+        s.showToast("Rotation cleared", "success");
+        return;
+      }
       if (k === "s" && !ctrl && !shift) { s.setActiveTool("scale"); s.showToast("Scale tool — drag selected object(s)", "info"); return; }
       if (k === "s" && shift) { s.setActiveTool("snap-menu"); return; }
+      if (k === "s" && ctrl) {
+        // Ctrl+S = save scene (browser would save the page)
+        saveSceneViaStore();
+        return;
+      }
       if (k === "z" && !ctrl && !shift) {
         // shading cycle
         const order = ["wireframe", "solid", "material", "rendered"] as const;
@@ -151,7 +214,7 @@ export default function Viewport3D() {
         }
         return;
       }
-      if (k === "h" && !ctrl) {
+      if (k === "h" && !ctrl && !shift) {
         // hide
         for (const id of s.selection.objects) s.updateObject(id, { visible: false });
         s.deselectAll();
@@ -203,18 +266,15 @@ export default function Viewport3D() {
         return;
       }
       if (k === "n" && ctrl) {
-        e.preventDefault();
         s.togglePanel("properties");
         return;
       }
       // Undo/redo
       if (k === "z" && ctrl) {
-        e.preventDefault();
         if (shift) s.redo(); else s.undo();
         return;
       }
       if (k === "y" && ctrl) {
-        e.preventDefault();
         s.redo();
         return;
       }
@@ -233,8 +293,8 @@ export default function Viewport3D() {
       if (k === "7" && e.code === "Numpad7") { vpRef.current?.setViewportMode("top"); return; }
       if (k === "0" && e.code === "Numpad0") { vpRef.current?.setViewportMode("camera"); return; }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [activeTool]);
 
   // Apply transform tool drag (very simple — full drag handled in separate transform component)
