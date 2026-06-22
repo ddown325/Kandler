@@ -26,13 +26,21 @@ export function ScriptingConsole({ onClose }: { onClose: () => void }) {
   const runCommand = (cmd: string) => {
     pushConsole({ type: "input", text: cmd });
     try {
-      // Expose Kandler API in the sandbox
       const store = useStore.getState();
       const vp = getViewport();
       const scene = vp?.scene;
+      // Try expression first: return (expr)
+      // Fall back to statement eval
+      let fnBody: string;
+      try {
+        new Function(`return (${cmd});`);
+        fnBody = `return (${cmd});`;
+      } catch {
+        fnBody = cmd.endsWith(";") ? cmd : `${cmd};`;
+      }
       const fn = new Function(
         "store", "vp", "scene", "THREE", "useStore",
-        `"use strict"; return (async () => { ${cmd} })();`
+        `"use strict"; ${fnBody}`
       );
       const result = fn(store, vp, scene, THREE, useStore);
       Promise.resolve(result).then(r => {

@@ -12,6 +12,7 @@ import * as meshOps from "@/lib/kandler/mesh-ops";
 import { asset } from "@/lib/kandler/asset";
 import { Icon } from "@/components/kandler/Icon";
 import { ShortcutsModal } from "@/components/kandler/ShortcutsModal";
+import WorkspaceTabs from "@/components/kandler/menus/WorkspaceTabs";
 
 type MenuDef = {
   label: string;
@@ -529,6 +530,9 @@ export default function TopMenuBar() {
       ))}
 
       <div className="flex-1" />
+
+      {/* Workspace Tabs (Blender-style) */}
+      <WorkspaceTabs />
 
       {/* Quick actions */}
       <button

@@ -146,13 +146,45 @@ export default function Viewport3D() {
       }
 
       // Tool shortcuts
-      if (k === "a" && !ctrl && !shift) { s.selectAll(); return; }
-      if (k === "a" && !ctrl && shift) { s.deselectAll(); return; }
+      if (k === "a" && !ctrl && !shift) {
+        // In edit mode, select all components of the active mesh
+        if (s.editMode === "edit" && s.activeObjectId) {
+          const obj = s.objects[s.activeObjectId];
+          if (obj && obj.mesh) {
+            s.clearComponentSelection();
+            if (s.componentMode === "vertex") {
+              for (let i = 0; i < obj.mesh.vertices.length; i++) s.selectVertex(i, true);
+            } else if (s.componentMode === "face") {
+              for (let i = 0; i < obj.mesh.faces.length; i++) s.selectFace(i, true);
+            }
+            s.showToast(`Selected all ${s.componentMode}s`, "info");
+          }
+        } else {
+          s.selectAll();
+        }
+        return;
+      }
+      if (k === "a" && !ctrl && shift) {
+        if (s.editMode === "edit") {
+          s.clearComponentSelection();
+          s.showToast("Deselected all", "info");
+        } else {
+          s.deselectAll();
+        }
+        return;
+      }
       if (k === "i" && !ctrl && shift) { s.invertSelection(); return; }
       if (k === "b" && !ctrl && !shift) { s.setActiveTool("box-select"); return; }
       if (k === "c" && !ctrl && !shift) { s.setActiveTool("cursor"); return; }
       if (k === "tab" && !ctrl) {
-        s.setEditMode(s.editMode === "edit" ? "object" : "edit");
+        const newMode = s.editMode === "edit" ? "object" : "edit";
+        s.setEditMode(newMode);
+        if (newMode === "edit") s.setComponentMode("face");
+        return;
+      }
+      if (k === "o" && !ctrl && !shift) {
+        s.toggleProportional();
+        s.showToast(`Proportional editing: ${s.proportionalEditing ? "OFF" : "ON"}`, "info");
         return;
       }
       if (k === "t" && !ctrl && !shift) { s.togglePanel("toolbar"); return; }
