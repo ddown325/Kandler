@@ -851,13 +851,16 @@ export function createViewport(container: HTMLElement): ViewportHandle {
     showAxesRef = state.showAxes;
     cursorRef = state.cursor.position;
 
-    // Update 3D transform gizmo — position at active object, set mode from tool
-    if (state.activeObjectId && state.objects[state.activeObjectId]) {
+    // Update 3D transform gizmo — only show when a transform tool is active
+    // and an object is selected. Hidden in edit/sculpt modes and when the
+    // "select" tool is active (so it doesn't block clicking objects).
+    const isTransformTool = ["move", "rotate", "scale"].includes(state.activeTool);
+    if (state.activeObjectId && state.objects[state.activeObjectId] && isTransformTool && state.editMode === "object") {
       const obj = state.objects[state.activeObjectId];
       transformGizmo.setPosition(new THREE.Vector3(obj.position[0], obj.position[1], obj.position[2]));
       const mode: GizmoMode = state.activeTool === "rotate" ? "rotate" : state.activeTool === "scale" ? "scale" : "move";
       transformGizmo.setMode(mode);
-      transformGizmo.setVisible(state.editMode !== "sculpt" && state.editMode !== "edit");
+      transformGizmo.setVisible(true);
     } else {
       transformGizmo.setVisible(false);
     }
@@ -922,8 +925,9 @@ export function createViewport(container: HTMLElement): ViewportHandle {
     lastX = e.clientX; lastY = e.clientY;
     const s = useStore.getState();
 
-    // ---- GIZMO PICKING (check first, before anything else) ----
-    if (e.button === 0 && s.activeObjectId) {
+    // ---- GIZMO PICKING (only when a transform tool is active) ----
+    const isTransformTool = ["move", "rotate", "scale"].includes(s.activeTool);
+    if (e.button === 0 && s.activeObjectId && isTransformTool && s.editMode === "object") {
       const rect = renderer.domElement.getBoundingClientRect();
       ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;

@@ -41,9 +41,19 @@ const TABS: { id: Tab; icon: IconName; label: string }[] = [
 
 export default function PropertiesPanel() {
   const [tab, setTab] = useState<Tab>("object");
+  const [prevActiveId, setPrevActiveId] = useState<string | null>(null);
   const activeId = useStore(s => s.activeObjectId);
   const objects = useStore(s => s.objects);
   const obj = activeId ? objects[activeId] : null;
+
+  // Auto-switch to Object tab when a new object is selected
+  if (activeId && activeId !== prevActiveId) {
+    setPrevActiveId(activeId);
+    const globalTabs: Tab[] = ["render", "output", "scene", "world", "gpencil", "script"];
+    if (globalTabs.includes(tab)) {
+      setTab("object");
+    }
+  }
 
   return (
     <div className="h-full flex flex-col bg-[#1e1a2e] text-white kandler-ui">
