@@ -8,6 +8,9 @@
  */
 import * as THREE from "three";
 import { generatePrimitiveMesh, MaterialSlot, Modifier, SceneObject, useStore } from "./store";
+import { sculptStroke } from "./mesh-ops-advanced";
+import { csgBoolean } from "./csg";
+import { TransformGizmo, type GizmoMode } from "./gizmo";
 
 export interface ViewportHandle {
   scene: THREE.Scene;
@@ -116,6 +119,9 @@ export function createViewport(container: HTMLElement): ViewportHandle {
   const cursorLines = new THREE.LineSegments(cursorGeom, cursorMat);
   cursorGroup.add(cursorLines);
   scene.add(cursorGroup);
+
+  // 3D Transform Gizmo (native Three.js, not HTML overlay)
+  const transformGizmo = new TransformGizmo(scene);
 
   // Ambient + sun by default (the engine baseline)
   const ambient = new THREE.AmbientLight(0x404040, 0.7);
@@ -845,8 +851,18 @@ export function createViewport(container: HTMLElement): ViewportHandle {
     showAxesRef = state.showAxes;
     cursorRef = state.cursor.position;
 
+    // Update 3D transform gizmo — position at active object, set mode from tool
+    if (state.activeObjectId && state.objects[state.activeObjectId]) {
+      const obj = state.objects[state.activeObjectId];
+      transformGizmo.setPosition(new THREE.Vector3(obj.position[0], obj.position[1], obj.position[2]));
+      const mode: GizmoMode = state.activeTool === "rotate" ? "rotate" : state.activeTool === "scale" ? "scale" : "move";
+      transformGizmo.setMode(mode);
+      transformGizmo.setVisible(state.editMode !== "sculpt" && state.editMode !== "edit");
+    } else {
+      transformGizmo.setVisible(false);
+    }
+
     // If we're in camera view, continuously update from the scene camera
-    // so the user sees live updates when they move/rotate the camera object.
     if (viewportMode === "camera") {
       applyCameraView();
     }
@@ -904,14 +920,208 @@ export function createViewport(container: HTMLElement): ViewportHandle {
     isMouseDown = true;
     mouseButton = e.button;
     lastX = e.clientX; lastY = e.clientY;
+    const s = useStore.getState();
+
+    // ---- GIZMO PICKING (check first, before anything else) ----
+    if (e.button === 0 && s.activeObjectId) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(ndc, camera);
+      const gizmoHit = transformGizmo.pick(raycaster);
+      if (gizmoHit) {
+        e.preventDefault();
+        e.stopPropagation();
+        isMouseDown = false; // don't start orbit
+        startGizmoDrag(gizmoHit.axis, gizmoHit.type, e.clientX, e.clientY);
+        return;
+      }
+    }
+
+    // ---- EDIT MODE component picking ----
+    if (e.button === 0 && s.editMode === "edit") {
+      const hit = pickMeshSurface(e.clientX, e.clientY);
+      if (hit) {
+        e.preventDefault();
+        e.stopPropagation();
+        const additive = e.shiftKey;
+        if (!additive) s.selectObject(hit.objectId, false);
+        if (s.componentMode === "face") s.selectFace(hit.faceIndex, additive);
+        else if (s.componentMode === "vertex") {
+          const obj = s.objects[hit.objectId];
+          if (obj && obj.mesh) {
+            const lp = { x: hit.point.x - obj.position[0], y: hit.point.y - obj.position[1], z: hit.point.z - obj.position[2] };
+            let closest = 0, minD = Infinity;
+            for (let i = 0; i < obj.mesh.vertices.length; i++) {
+              const v = obj.mesh.vertices[i];
+              const d = (v.x - lp.x) ** 2 + (v.y - lp.y) ** 2 + (v.z - lp.z) ** 2;
+              if (d < minD) { minD = d; closest = i; }
+            }
+            s.selectVertex(closest, additive);
+          }
+        }
+        isMouseDown = false;
+        return;
+      } else if (!e.shiftKey) {
+        s.clearComponentSelection();
+        isMouseDown = false;
+        return;
+      }
+    }
+
+    // ---- SCULPT MODE ----
+    if (e.button === 0 && s.editMode === "sculpt") {
+      const hit = pickMeshSurface(e.clientX, e.clientY);
+      if (hit) {
+        e.preventDefault();
+        e.stopPropagation();
+        const brush = (window as any).__kandlerSculptBrush || "draw";
+        const radius = (window as any).__kandlerSculptRadius ?? 1;
+        const strength = (window as any).__kandlerSculptStrength ?? 0.5;
+        const obj = s.objects[hit.objectId];
+        if (obj && obj.mesh) {
+          const localPoint = new THREE.Vector3(hit.point.x - obj.position[0], hit.point.y - obj.position[1], hit.point.z - obj.position[2]);
+          let lastPoint = localPoint.clone();
+          updateBrushCursor(hit.point, radius);
+          const applySculpt = (pt: THREE.Vector3, normal: THREE.Vector3) => {
+            const currentObj = useStore.getState().objects[obj.id];
+            if (!currentObj || !currentObj.mesh) return;
+            const delta = brush === "grab" ? new THREE.Vector3().subVectors(pt, lastPoint) : normal.clone().multiplyScalar(strength * 0.1);
+            const newMesh = sculptStroke(currentObj.mesh, brush, [pt.x, pt.y, pt.z], radius, strength, [delta.x, delta.y, delta.z]);
+            useStore.getState().updateMesh(obj.id, () => newMesh);
+            lastPoint = pt.clone();
+          };
+          applySculpt(localPoint, hit.normal);
+          const onMove = (ev: MouseEvent) => {
+            const newHit = pickMeshSurface(ev.clientX, ev.clientY);
+            if (!newHit || newHit.objectId !== hit.objectId) return;
+            const newLocal = new THREE.Vector3(newHit.point.x - obj.position[0], newHit.point.y - obj.position[1], newHit.point.z - obj.position[2]);
+            updateBrushCursor(newHit.point, radius);
+            applySculpt(newLocal, newHit.normal);
+          };
+          const onUp = () => {
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+            updateBrushCursor(null, radius);
+            useStore.getState().pushHistory(`Sculpt ${brush}`);
+          };
+          window.addEventListener("mousemove", onMove);
+          window.addEventListener("mouseup", onUp);
+        }
+        isMouseDown = false;
+        return;
+      }
+    }
+
+    // ---- OBJECT PICKING (left click, no modifiers) ----
+    if (e.button === 0 && !e.shiftKey && !e.altKey) {
+      const id = pickObject(e.clientX, e.clientY);
+      if (id) {
+        useStore.getState().selectObject(id, false);
+        isMouseDown = false;
+        return;
+      } else {
+        useStore.getState().deselectAll();
+      }
+    }
+
+    // ---- ORBIT / PAN (middle mouse, or Alt+left, or Shift+left) ----
     if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
       isPanning = true; isOrbiting = false;
     } else if (e.button === 2 || (e.button === 0 && e.altKey)) {
       isPanning = false; isOrbiting = true;
     } else if (e.button === 0) {
-      // could be pick or orbit
       isOrbiting = false; isPanning = false;
     }
+  }
+
+  // ---- GIZMO DRAG HANDLER ----
+  function startGizmoDrag(axis: string, type: string, startX: number, startY: number) {
+    const s = useStore.getState();
+    if (!s.activeObjectId) return;
+    const obj = s.objects[s.activeObjectId];
+    if (!obj) return;
+    const startPos: [number, number, number] = [...obj.position] as any;
+    const startRot: [number, number, number] = [...obj.rotation] as any;
+    const startScale: [number, number, number] = [...obj.scale] as any;
+
+    // Build a drag plane perpendicular to the camera, through the object origin
+    const origin = new THREE.Vector3(obj.position[0], obj.position[1], obj.position[2]);
+    const camForward = camera.getWorldDirection(new THREE.Vector3());
+    const dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(camForward, origin);
+
+    // For axis-locked moves, the drag plane contains the axis and the camera forward
+    let axisVec: THREE.Vector3 | null = null;
+    if (axis === "x") axisVec = new THREE.Vector3(1, 0, 0);
+    else if (axis === "y") axisVec = new THREE.Vector3(0, 1, 0);
+    else if (axis === "z") axisVec = new THREE.Vector3(0, 0, 1);
+
+    if (axisVec && type === "move") {
+      // Plane = axis × cameraForward
+      let normal = new THREE.Vector3().crossVectors(axisVec, camForward);
+      if (normal.lengthSq() < 1e-6) normal = new THREE.Vector3().crossVectors(axisVec, new THREE.Vector3(0, 0, 1));
+      normal.normalize();
+      dragPlane.setFromNormalAndCoplanarPoint(normal, origin);
+    }
+
+    // Initial ray hit on the drag plane
+    const rect = renderer.domElement.getBoundingClientRect();
+    ndc.x = ((startX - rect.left) / rect.width) * 2 - 1;
+    ndc.y = -((startY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(ndc, camera);
+    const startHit = new THREE.Vector3();
+    const hitOk = raycaster.ray.intersectPlane(dragPlane, startHit);
+
+    const onMove = (ev: MouseEvent) => {
+      const st = useStore.getState();
+      const cur = st.objects[s.activeObjectId!];
+      if (!cur) return;
+      const r = getRaycaster(ev.clientX, ev.clientY);
+      const newHit = new THREE.Vector3();
+      if (!r.ray.intersectPlane(dragPlane, newHit) || !hitOk) return;
+      const delta = new THREE.Vector3().subVectors(newHit, startHit);
+
+      if (type === "move") {
+        if (axis === "free") {
+          st.setObjectTransform(s.activeObjectId!, [startPos[0] + delta.x, startPos[1] + delta.y, startPos[2] + delta.z]);
+        } else if (axisVec) {
+          const comp = axis === "x" ? delta.x : axis === "y" ? delta.y : delta.z;
+          const newVals: [number, number, number] = [...startPos];
+          if (axis === "x") newVals[0] += comp;
+          else if (axis === "y") newVals[1] += comp;
+          else if (axis === "z") newVals[2] += comp;
+          st.setObjectTransform(s.activeObjectId!, newVals);
+        }
+      } else if (type === "scale") {
+        const factor = 1 + (axisVec ? delta.dot(axisVec) : delta.length()) * 0.5;
+        if (axis === "free") {
+          st.setObjectTransform(s.activeObjectId!, undefined, undefined, [startScale[0] * factor, startScale[1] * factor, startScale[2] * factor]);
+        } else if (axisVec) {
+          const newScale: [number, number, number] = [...startScale];
+          if (axis === "x") newScale[0] *= factor;
+          else if (axis === "y") newScale[1] *= factor;
+          else if (axis === "z") newScale[2] *= factor;
+          st.setObjectTransform(s.activeObjectId!, undefined, undefined, newScale);
+        }
+      } else if (type === "rotate") {
+        // Rotation: use screen-space drag delta projected onto the axis
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        const angle = (dx + dy) * 0.01;
+        const newRot: [number, number, number] = [...startRot];
+        if (axis === "x") newRot[0] += angle;
+        else if (axis === "y") newRot[1] += angle;
+        else if (axis === "z") newRot[2] += angle;
+        st.setObjectTransform(s.activeObjectId!, undefined, newRot);
+      }
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      useStore.getState().pushHistory(`Gizmo ${type} ${axis}`);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
   }
   function onMouseMove(e: MouseEvent) {
     if (!isMouseDown) return;
