@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
     "build": "next build",
-    "build:gh": "STATIC_EXPORT=1 BASE_PATH=/${REPO_NAME:-kandler} next build",
+    "build:gh": "STATIC_EXPORT=1 BASE_PATH=\"${BASE_PATH:-/Kandler}\" next build",
     "lint": "eslint ."
   },
   "dependencies": {
